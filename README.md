@@ -1,3 +1,6 @@
+![cheveret editing text](cheveret_text.png)
+![cheveret editing code](cheveret_code.png)
+
 # Cheveret
 
 A minimal, featureless text editor with a file tree for GNOME on Linux.
@@ -16,14 +19,14 @@ This is **alpha** software. There are known defects, and through its continued d
 
 ## Building
 
-Building is done using `flatpak-builder`.
+Cheveret compiles with [Flatpak Builder](https://docs.flatpak.org/en/latest/flatpak-builder.html).
 
 ```sh
 flatpak-builder .build ca.vlacroix.Cheveret.yml --user --install --force-clean
 flatpak run ca.vlacroix.Cheveret
 ```
 
-To build and run the development version,
+To build and run the development version, add `.Devel` after the application's name.
 
 ```sh
 flatpak-builder .build ca.vlacroix.Cheveret.Devel.yml --user --install --force-clean
