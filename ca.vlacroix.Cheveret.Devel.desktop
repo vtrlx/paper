@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Icon=text-x-generic
+Name=Cheveret (dev)
+Name[en]=Cheveret (dev)
+Comment=Featureless Text Editor
+Comment[en]=Featureless Text Editor
+Exec=flatpak run ca.vlacroix.Cheveret.Devel
+Hidden=false
+NoDisplay=false
+StartupNotify=false
+Terminal=false
+StartupWMClass=ca.vlacroix.Cheveret.Devel

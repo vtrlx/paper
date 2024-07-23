@@ -1,0 +1,8 @@
+# Directories not meant to be versioned
+wip
+
+# Build files
+cheveret
+*.o
+.build
+.flatpak-builder
