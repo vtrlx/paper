@@ -1,4 +1,11 @@
-/* cheveret.c — Startup and support code for Cheveret. */
+/* cheveret.c — Startup and support code for Cheveret.
+Copyright © 2024 Victoria Lacroix
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -62,7 +69,7 @@ getcwd_lua(lua_State *L)
 
 static int
 forkcdexec_lua(lua_State *L)
-/* Forks the process, changes directory the a certain given directory, and then executes a given shell command. This function is used mainly to open terminals and the file browser in the project folder. */
+/* Forks the process, changes directory the given directory, and then executes a given shell command. This function is used mainly to open terminals and the file browser in the project folder. */
 {
 	const char *dir;
 	const char *bin;
