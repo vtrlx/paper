@@ -5,15 +5,15 @@
 -- As this is a Linux program, many of these functions are specific to Linux.
 
 -- Allows the libraries to be loaded by Flatpak.
-package.cpath = '/app/lib/lua/5.4/?.so;' .. package.cpath
-package.path = '/app/share/lua/5.4/?.lua;' .. package.path
+package.cpath = "/app/lib/lua/5.4/?.so;" .. package.cpath
+package.path = "/app/share/lua/5.4/?.lua;" .. package.path
 
-local lfs = require 'lfs'
-local lib = require 'chevlib'
-local inotify = require 'inotify'
+local lfs = require "lfs"
+local lib = require "chevlib"
+local inotify = require "inotify"
 
 function lib.get_home_directory()
-	return os.getenv 'HOME'
+	return os.getenv "HOME"
 end
 
 function lib.get_pwd()
@@ -84,27 +84,27 @@ end
 function lib.file_is_binary(file)
 	local is_binary = false
 	for line in file:lines() do
-		if line:match '\0' then
+		if line:match "\0" then
 			is_binary = true
 			break
 		end
 	end
-	file:seek 'set'
+	file:seek "set"
 	return is_binary
 end
 
 -- Main Application --
 
-local lgi = require 'lgi'
+local lgi = require "lgi"
 
-local GLib = lgi.require 'GLib'
-local Gio = lgi.require 'Gio'
-local Adw = lgi.require 'Adw'
-local Gtk = lgi.require 'Gtk'
+local GLib = lgi.require "GLib"
+local Gio = lgi.require "Gio"
+local Adw = lgi.require "Adw"
+local Gtk = lgi.require "Gtk"
 
 local app_id = lib.get_app_id()
 local is_devel = lib.get_is_devel()
-local app_title = 'Cheveret'
+local app_title = "Cheveret"
 local app_version = lib.get_app_ver()
 local app  = Adw.Application {
 	application_id = app_id,
@@ -113,15 +113,15 @@ local app  = Adw.Application {
 
 -- Shortcuts from the GNOME HIG (https://developer.gnome.org/hig/reference/keyboard.html)
 local accels = {
-	['win.close_tab'] = { '<Ctrl>W' },
-	['win.save_file'] = { '<Ctrl>S' },
-	['win.search'] = { '<Ctrl>F' },
-	['win.goto'] = { '<Ctrl>I' },
-	['win.toggle_sidebar'] = { 'F9' },
-	['win.open_workspace'] = {'<Ctrl>N' },
-	['win.open_new_workspace'] = { '<Ctrl><Shift>N' },
-	['win.project_dir'] = { '<Ctrl>P' },
-	['win.shortcuts'] = { '<Ctrl><Shift>slash' }
+	["win.close_tab"] = { "<Ctrl>W" },
+	["win.save_file"] = { "<Ctrl>S" },
+	["win.search"] = { "<Ctrl>F" },
+	["win.goto"] = { "<Ctrl>I" },
+	["win.toggle_sidebar"] = { "F9" },
+	["win.open_workspace"] = {"<Ctrl>N" },
+	["win.open_new_workspace"] = { "<Ctrl><Shift>N" },
+	["win.project_dir"] = { "<Ctrl>P" },
+	["win.shortcuts"] = { "<Ctrl><Shift>slash" },
 }
 for k, v in pairs(accels) do
 	app:set_accels_for_action(k, v)
@@ -129,24 +129,24 @@ end
 
 local lerror = error
 local function error(...)
-	local msg = table.concat({ ... }, ' ')
-	local dlg = Adw.AlertDialog.new('Error', msg)
-	dlg:add_response('cancel', 'Okay')
+	local msg = table.concat({ ... }, " ")
+	local dlg = Adw.AlertDialog.new("Error", msg)
+	dlg:add_response("cancel", "Okay")
 	dlg:choose()
 	-- Call Lua's builtin error() function so this new one has the same semantics of unwinding the call stack.
 	lerror(...)
 end
 
 local aboutdlg = Adw.AboutDialog {
-	application_icon = 'text-x-generic', -- FIXME: use an actual app icon
-	application_name = 'Cheveret',
-	copyright = '© 2024 Victoria Lacroix',
-	developer_name = 'Victoria Lacroix',
+	application_icon = "text-x-generic", -- FIXME: use an actual app icon
+	application_name = "Cheveret",
+	copyright = "© 2024 Victoria Lacroix",
+	developer_name = "Victoria Lacroix",
 	developers = {
-		'Victoria Lacroix <victoria@vlacroix.ca>',
+		"Victoria Lacroix <victoria@vlacroix.ca>",
 	},
 	issue_url = nil, -- FIXME: assign actual issue URL
-	license_type = 'GPL_3_0',
+	license_type = "GPL_3_0",
 	version = lib.get_app_ver(),
 	website = nil, -- FIXME: assign actual website URL
 }
@@ -162,17 +162,17 @@ local editor = {}
 local function new_editor()
 	-- FIXME: Add results count to search entry
 	local search_entry = Gtk.SearchEntry {
-		placeholder_text = 'Find in file…',
+		placeholder_text = "Find in file…",
 		width_request = 300,
 	}
-	local prev_match = Gtk.Button.new_from_icon_name 'go-up-symbolic'
-	local next_match = Gtk.Button.new_from_icon_name 'go-down-symbolic'
+	local prev_match = Gtk.Button.new_from_icon_name "go-up-symbolic"
+	local next_match = Gtk.Button.new_from_icon_name "go-down-symbolic"
 	local match_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL }
-	match_box:add_css_class 'linked' -- No, but a tin can.
+	match_box:add_css_class "linked" -- No, but a tin can.
 	match_box:append(prev_match)
 	match_box:append(next_match)
 	local matchnum_label = Gtk.Label {}
-	matchnum_label:add_css_class 'numeric'
+	matchnum_label:add_css_class "numeric"
 	local search_box = Gtk.Box {
 		orientation = Gtk.Orientation.HORIZONTAL,
 		spacing = 8,
@@ -187,7 +187,7 @@ local function new_editor()
 	}
 	search_bar:connect_entry(search_entry)
 	local jump_entry = Gtk.Entry {
-		placeholder_text = 'Go to line…',
+		placeholder_text = "Go to line…",
 	}
 	local jump_bar = Gtk.SearchBar {
 		child = jump_entry,
@@ -205,11 +205,11 @@ local function new_editor()
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
 	-- Force monospace numbers regardless of font.
-	text_view:add_css_class 'numeric'
+	text_view:add_css_class "numeric"
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
 		child = text_view,
-		hscrollbar_policy = 'NEVER',
+		hscrollbar_policy = "NEVER",
 		vexpand = true,
 	}
 	local vbox = Gtk.Box { orientation = Gtk.Orientation.VERTICAL }
@@ -257,7 +257,7 @@ local function new_editor()
 	end
 	function jump_entry:on_activate()
 		local n = tonumber(jump_entry.text)
-		if type(n) == 'number' then
+		if type(n) == "number" then
 			e:go_to(n)
 		end
 	end
@@ -315,16 +315,16 @@ function filerow_mt.__gc(self)
 end
 
 function filerow:open()
-	if self.kind == 'file' then
+	if self.kind == "file" then
 		open_file(self.path)
-	elseif self.kind == 'binary' then
-		local opencmd = ('xdg-open "%s"'):format(self:getname())
+	elseif self.kind == "binary" then
+		local opencmd = ("xdg-open '%s'"):format(self:getname())
 		lib.forkcdexec(self:getdir(), opencmd)
-	elseif self.kind == 'directory' then
+	elseif self.kind == "directory" then
 		if self.opened then
 			self.opened = false
 			for c in self:iterchildren() do
-				if c.kind == 'directory' then
+				if c.kind == "directory" then
 					c.opened = false
 					c:update()
 				end
@@ -338,12 +338,12 @@ end
 
 function filerow:getdir()
 	-- string.match() is guaranteed to return the longest possible match, so this pattern matches up to the last slash and captures everything leading up to it.
-	local dir = self.path:match '^(.*)/'
+	local dir = self.path:match "^(.*)/"
 	return dir
 end
 
 function filerow:getname()
-	return self.path:match '[^/]+$'
+	return self.path:match "[^/]+$"
 end
 
 function filerow:iterchildren()
@@ -358,32 +358,32 @@ function filerow:iterchildren()
 end
 
 function filerow:refresh()
-	if self.kind == 'file' or self.kind == 'binary' then
+	if self.kind == "file" or self.kind == "binary" then
 		if lib.file_is_binary(io.open(self.path)) then
-			self.kind = 'binary'
+			self.kind = "binary"
 		else
-			self.kind = 'file'
+			self.kind = "file"
 		end
 	end
 	self:update()
 end
 
 function filerow:update()
-	if self.kind == 'root' then return end
+	if self.kind == "root" then return end
 	self.label.label = self:getname()
 	self.lbr.tooltip_text = self.label.label
-	if self.kind == 'file' then
-		self.icon.icon_name = 'emblem-documents-symbolic'
-	elseif self.kind == 'binary' then
-		self.icon.icon_name = 'application-x-executable-symbolic'
-	elseif self.kind == 'directory' then
+	if self.kind == "file" then
+		self.icon.icon_name = "emblem-documents-symbolic"
+	elseif self.kind == "binary" then
+		self.icon.icon_name = "application-x-executable-symbolic"
+	elseif self.kind == "directory" then
 		for c in self:iterchildren() do
 			c.lbr:set_visible(self.opened)
 		end
 		if self.opened then
-			self.icon.icon_name = 'folder-open-symbolic'
+			self.icon.icon_name = "folder-open-symbolic"
 		else
-			self.icon.icon_name = 'folder-symbolic'
+			self.icon.icon_name = "folder-symbolic"
 		end
 	end
 end
@@ -402,17 +402,17 @@ function filerow:append(child)
 	local cname = child:getname()
 	local t
 	if self.opened then child.lbr:set_visible(true) end
-	if child.kind == 'directory' then
+	if child.kind == "directory" then
 		t = self.cdirs
-	elseif child.kind == 'file' then
+	elseif child.kind == "file" then
 		t = self.cfiles
 	end
-	if #t == 0 and child.kind == 'directory' then
+	if #t == 0 and child.kind == "directory" then
 		local index = self:getlastindex()
 		self.lbr.parent:insert(child.lbr, index + 1)
 		table.insert(t, child)
 		return
-	elseif #t == 0 and child.kind == 'file' then
+	elseif #t == 0 and child.kind == "file" then
 		local index = self:getlastindex()
 		self.lbr.parent:insert(child.lbr, index + 1)
 		table.insert(t, child)
@@ -464,12 +464,12 @@ end
 local callbacks_by_filerow = {}
 
 function new_filerow(path, kind, depth)
-	local icon = Gtk.Image.new_from_icon_name ''
+	local icon = Gtk.Image.new_from_icon_name ""
 	local label = Gtk.Label {
-		ellipsize = 'END',
+		ellipsize = "END",
 	}
 	local box = Gtk.Box {
-		orientation = 'HORIZONTAL',
+		orientation = "HORIZONTAL",
 		spacing = 6,
 		margin_start = math.max(0, 18 * depth),
 	}
@@ -477,7 +477,7 @@ function new_filerow(path, kind, depth)
 	box:append(label)
 	local lbr = Gtk.ListBoxRow {
 		child = box,
-		visible = depth == 0 and kind ~= 'root',
+		visible = depth == 0 and kind ~= "root",
 	}
 	local r = setmetatable({
 		path = path,
@@ -504,20 +504,20 @@ local function populate_filerow_tree(params)
 	local watchid = params.in_handle:addwatch(params.path, watchopts)
 	watch_paths[in_id][watchid] = params.path
 	for file in lfs.dir(params.path) do
-		if file ~= '.' and file ~= '..' then
-			local f = params.path .. '/' .. file
+		if file ~= "." and file ~= ".." then
+			local f = params.path .. "/" .. file
 			local attrs = lfs.symlinkattributes(f)
-			assert(type(attrs) == 'table')
-			if attrs.mode == 'directory' and file:sub(1, 1) ~= '.' then
+			assert(type(attrs) == "table")
+			if attrs.mode == "directory" and file:sub(1, 1) ~= "." then
 				table.insert(directories, f)
-			elseif attrs.mode == 'file' then
+			elseif attrs.mode == "file" then
 				table.insert(files, f)
 			end
 		end
 	end
 	table.sort(directories)
 	for _, directory in ipairs(directories) do
-		local row = new_filerow(directory, 'directory', params.depth)
+		local row = new_filerow(directory, "directory", params.depth)
 		rows_by_path[in_id][directory] = row
 		params.parent:append(row)
 		populate_filerow_tree {
@@ -529,7 +529,7 @@ local function populate_filerow_tree(params)
 	end
 	table.sort(files)
 	for _, file in ipairs(files) do
-		local row = new_filerow(file, 'file', params.depth)
+		local row = new_filerow(file, "file", params.depth)
 		rows_by_path[in_id][file] = row
 		params.parent:append(row)
 	end
@@ -537,12 +537,12 @@ end
 
 local function create_file_pane(dir)
 	local box = Gtk.ListBox()
-	box:add_css_class 'navigation-sidebar'
+	box:add_css_class "navigation-sidebar"
 	local in_handle = inotify.init { blocking = false }
 	local in_id = in_handle:fileno()
 	watch_paths[in_id] = {}
 	rows_by_path[in_id] = {}
-	local root = new_filerow(dir, 'root', -1)
+	local root = new_filerow(dir, "root", -1)
 	rows_by_path[in_id][dir] = root
 	box:append(root.lbr)
 	populate_filerow_tree {
@@ -556,7 +556,7 @@ local function create_file_pane(dir)
 	end
 	return Gtk.ScrolledWindow {
 		child = box,
-		hscrollbar_policy = 'NEVER',
+		hscrollbar_policy = "NEVER",
 		vexpand = true,
 	}, box, in_handle
 end
@@ -567,19 +567,19 @@ local function handle_inotify()
 		local in_id = in_handle:fileno()
 		for evt, err in in_handle:events() do
 			if not evt then
-				lerror('error when processing inotify', err)
+				lerror("error when processing inotify", err)
 				break
 			end
 			local dirpath = watch_paths[in_id][evt.wd]
 			local filepath = dirpath
-			if evt.name then filepath = dirpath .. '/' .. evt.name end
+			if evt.name then filepath = dirpath .. "/" .. evt.name end
 			if (evt.mask & (inotify.IN_CREATE | inotify.IN_MOVED_TO)) ~= 0 then
 				local attrs = lfs.symlinkattributes(filepath)
-				local file_name = filepath:match '([^/]+)/?$'
-				if type(attrs) ~= 'table' then attrs = {} end
-				if attrs.mode == 'directory' and file_name:sub(1, 1) ~= '.' then
+				local file_name = filepath:match "([^/]+)/?$"
+				if type(attrs) ~= "table" then attrs = {} end
+				if attrs.mode == "directory" and file_name:sub(1, 1) ~= "." then
 					local prow = rows_by_path[in_id][dirpath]
-					local row = new_filerow(filepath, 'directory', prow.depth + 1)
+					local row = new_filerow(filepath, "directory", prow.depth + 1)
 					prow:append(row)
 					rows_by_path[in_id][filepath] = row
 					populate_filerow_tree {
@@ -588,9 +588,9 @@ local function handle_inotify()
 						depth = row.depth + 1,
 						in_handle = in_handle,
 					}
-				elseif attrs.mode == 'file' then
+				elseif attrs.mode == "file" then
 					local prow = rows_by_path[in_id][dirpath]
-					local row = new_filerow(filepath, 'file', prow.depth + 1)
+					local row = new_filerow(filepath, "file", prow.depth + 1)
 					prow:append(row)
 					rows_by_path[in_id][filepath] = row
 				end
@@ -629,14 +629,14 @@ local function create_file_dialog(pwd, ...)
 end
 
 local save_menu = Gio.Menu()
-save_menu:append('Save', 'win.save_file')
+save_menu:append("Save", "win.save_file")
 local file_menu = Gio.Menu()
-file_menu:append('New window here', 'win.open_workspace')
-file_menu:append('New window elsewhere…', 'win.open_new_workspace')
-file_menu:append('Open workspace folder', 'win.project_dir')
+file_menu:append("New Window", "win.open_workspace")
+file_menu:append("New Workspace…", "win.open_new_workspace")
+file_menu:append("Open Workspace Folder", "win.project_dir")
 local app_menu = Gio.Menu()
-app_menu:append('Keyboard Shortcuts', 'win.shortcuts')
-app_menu:append('About Cheveret', 'win.about')
+app_menu:append("Keyboard Shortcuts", "win.shortcuts")
+app_menu:append("About Cheveret", "win.about")
 local burger_menu = Gio.Menu()
 burger_menu:append_section(nil, save_menu)
 burger_menu:append_section(nil, file_menu)
@@ -644,53 +644,53 @@ burger_menu:append_section(nil, app_menu)
 
 local function newshortwindow(parent)
 	local editorgroup = Gtk.ShortcutsGroup {
-		title = 'Editor',
+		title = "Editor",
 	}
 	editorgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.save_file',
-		title = 'Save',
-		accelerator = '<Ctrl>S',
+		action_name = "win.save_file",
+		title = "Save",
+		accelerator = "<Ctrl>S",
 	})
 	editorgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.search',
-		title = 'Search in file',
-		accelerator = '<Ctrl>F',
+		action_name = "win.search",
+		title = "Search in file",
+		accelerator = "<Ctrl>F",
 	})
 	editorgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.goto',
-		title = 'Go to line',
-		accelerator = '<Ctrl>I',
+		action_name = "win.goto",
+		title = "Go to line",
+		accelerator = "<Ctrl>I",
 	})
 	editorgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.close_tab',
-		title = 'Close tab',
-		accelerator = '<Ctrl>W',
+		action_name = "win.close_tab",
+		title = "Close tab",
+		accelerator = "<Ctrl>W",
 	})
 	local miscgroup = Gtk.ShortcutsGroup {
-		title = 'Application',
+		title = "Application",
 	}
 	miscgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.open_workspace',
-		title = 'New window here',
-		accelerator = '<Ctrl>N',
+		action_name = "win.open_workspace",
+		title = "New window here",
+		accelerator = "<Ctrl>N",
 	})
 	miscgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.open_new_workspace',
-		title = 'New window elsewhere',
-		accelerator = '<Ctrl><Shift>N',
+		action_name = "win.open_new_workspace",
+		title = "New window elsewhere",
+		accelerator = "<Ctrl><Shift>N",
 	})
 	miscgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.project_dir',
-		title = 'View workspace folder',
-		accelerator = '<Ctrl>P',
+		action_name = "win.project_dir",
+		title = "View workspace folder",
+		accelerator = "<Ctrl>P",
 	})
 	miscgroup:add_shortcut(Gtk.ShortcutsShortcut {
-		action_name = 'win.shortcuts',
-		title = 'Keyboard shortcuts',
-		accelerator = '<Ctrl><Shift>slash',
+		action_name = "win.shortcuts",
+		title = "Keyboard shortcuts",
+		accelerator = "<Ctrl><Shift>slash",
 	})
 	local shortsection = Gtk.ShortcutsSection {
-		title = 'Cheveret',
+		title = "Cheveret",
 	}
 	shortsection:add_group(editorgroup)
 	shortsection:add_group(miscgroup)
@@ -713,35 +713,35 @@ end
 -- The TabView is returned for ease of creating new windows by dragging tabs off of an existing window.
 local function new_window(pwd)
 	local sidebar_header = Adw.HeaderBar {
-		title_widget = Adw.WindowTitle.new('Cheveret', lib.encode_path(pwd)),
+		title_widget = Adw.WindowTitle.new("Cheveret", lib.encode_path(pwd)),
 		show_end_title_buttons = false,
-		valign = 'START',
+		valign = "START",
 	}
 
 	local filepane, listbox, in_handle = create_file_pane(pwd)
 
 	local sidebar = Adw.ToolbarView {
 		content = filepane,
-		top_bar_style = 'FLAT',
+		top_bar_style = "FLAT",
 	}
 	sidebar:add_top_bar(sidebar_header)
 
 	local menu_button = Gtk.MenuButton {
-		direction = 'DOWN',
-		halign = 'END',
-		icon_name = 'open-menu-symbolic',
+		direction = "DOWN",
+		halign = "END",
+		icon_name = "open-menu-symbolic",
 		menu_model = burger_menu,
 	}
 
 	local sidebar_toggle_button = Gtk.ToggleButton {
-		icon_name = 'sidebar-show-symbolic',
+		icon_name = "sidebar-show-symbolic",
 		active = true,
 	}
 
 	local content_header = Adw.HeaderBar {
-		title_widget = Adw.WindowTitle.new('Cheveret', ''),
+		title_widget = Adw.WindowTitle.new("Cheveret", ""),
 		show_start_title_buttons = false,
-		valign = 'START',
+		valign = "START",
 	}
 	content_header:pack_start(sidebar_toggle_button)
 	content_header:pack_end(menu_button)
@@ -756,12 +756,12 @@ local function new_window(pwd)
 	local tab_bar = Adw.TabBar {
 		autohide = true,
 		view = tab_view,
-		valign = 'START',
+		valign = "START",
 	}
 
 	local content = Adw.ToolbarView {
 		content = tab_view,
-		top_bar_style = 'FLAT',
+		top_bar_style = "FLAT",
 	}
 	content:add_top_bar(content_header)
 	content:add_top_bar(tab_bar)
@@ -781,12 +781,13 @@ local function new_window(pwd)
 
 	local window = Adw.ApplicationWindow.new(app)
 	window.content = mainview
+	window.title = ("Cheveret — %s"):format(lib.encode_path(pwd))
 	window:set_default_size(900, 600)
 
 	function tab_view:on_page_attached(page)
 		local e = editors_by_view[page.child]
 		if not e then return end
-		content.top_bar_style = 'RAISED_BORDER'
+		content.top_bar_style = "RAISED_BORDER"
 		function e:set_title(title, subtitle)
 			if type(title) ~= "string" then title = "No Name" end
 			if type(subtitle) ~= "string" then subtitle = "" end
@@ -821,19 +822,19 @@ local function new_window(pwd)
 		end
 		self:close_page_finish(page, do_close)
 		if not do_close then
-			local body = ('The file "%s" has unsaved changes.'):format(e:get_file_name())
-			local dlg = Adw.AlertDialog.new('Save changes?', body)
-			dlg:add_response('close', 'Keep open')
-			dlg:set_response_appearance('close', Adw.ResponseAppearance.DEFAULT)
-			dlg:add_response('discard', 'Close without saving')
-			dlg:set_response_appearance('discard', Adw.ResponseAppearance.DESTRUCTIVE)
-			dlg:add_response('save', 'Save and close')
-			dlg:set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)
+			local body = ("The file \"%s\" has unsaved changes."):format(e:get_file_name())
+			local dlg = Adw.AlertDialog.new("Save changes?", body)
+			dlg:add_response("close", "Keep open")
+			dlg:set_response_appearance("close", Adw.ResponseAppearance.DEFAULT)
+			dlg:add_response("discard", "Close without saving")
+			dlg:set_response_appearance("discard", Adw.ResponseAppearance.DESTRUCTIVE)
+			dlg:add_response("save", "Save and close")
+			dlg:set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED)
 			function dlg:on_response(response)
-				if response == 'discard' then
+				if response == "discard" then
 					e.tv.buffer:set_modified(false)
 					tab_view:close_page(page)
-				elseif response == 'save' then
+				elseif response == "save" then
 					e:save()
 					tab_view:close_page(page)
 				end
@@ -844,9 +845,9 @@ local function new_window(pwd)
 			local path = e:get_file_path()
 			if path then editors_by_path[path] = nil end
 			if self:get_n_pages() == 0 then
-				content_header.title_widget:set_title 'Cheveret'
-				content_header.title_widget:set_subtitle ''
-				content.top_bar_style = 'FLAT'
+				content_header.title_widget:set_title "Cheveret"
+				content_header.title_widget:set_subtitle ""
+				content.top_bar_style = "FLAT"
 			end
 		end
 		return true
@@ -868,18 +869,18 @@ local function new_window(pwd)
 			end
 		end
 		if #unsaved > 0 then
-			local dlg = Adw.AlertDialog.new('Save changes?', 'Some of your work is unsaved.')
-			dlg:add_response('close', 'Keep open')
-			dlg:set_response_appearance('close', Adw.ResponseAppearance.DEFAULT)
-			dlg:add_response('discard', 'Discard all changes')
-			dlg:set_response_appearance('discard', Adw.ResponseAppearance.DESTRUCTIVE)
-			dlg:add_response('save', 'Save all and close workspace')
-			dlg:set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)
+			local dlg = Adw.AlertDialog.new("Save changes?", "Some of your work is unsaved.")
+			dlg:add_response("close", "Keep open")
+			dlg:set_response_appearance("close", Adw.ResponseAppearance.DEFAULT)
+			dlg:add_response("discard", "Discard all changes")
+			dlg:set_response_appearance("discard", Adw.ResponseAppearance.DESTRUCTIVE)
+			dlg:add_response("save", "Save all and close workspace")
+			dlg:set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED)
 			function dlg:on_response(response)
-				if response == 'save' then
+				if response == "save" then
 					for _, e in ipairs(unsaved) do e:save() end
 					window:close()
-				elseif response == 'discard' then
+				elseif response == "discard" then
 					for _, e in ipairs(unsaved) do e.tv.buffer:set_modified(false) end
 					window:close()
 				end
@@ -897,13 +898,13 @@ local function new_window(pwd)
 		end
 	end
 
-	window_new_action(window, 'close_tab', function()
+	window_new_action(window, "close_tab", function()
 		local page = tab_view.selected_page
 		if not page then return true end
 		tab_view:close_page(page)
 	end)
 
-	window_new_action(window, 'save_file', function()
+	window_new_action(window, "save_file", function()
 		local e = get_focused_editor()
 		if e:has_file() then
 			e:save()
@@ -912,32 +913,32 @@ local function new_window(pwd)
 		end
 	end)
 
-	window_new_action(window, 'search', function()
+	window_new_action(window, "search", function()
 		local e = get_focused_editor()
 		e:begin_search()
 	end)
 
-	window_new_action(window, 'goto', function()
+	window_new_action(window, "goto", function()
 		local e = get_focused_editor()
 		e:begin_jump()
 	end)
 
-	window_new_action(window, 'toggle_sidebar', function()
+	window_new_action(window, "toggle_sidebar", function()
 		toggle_sidebar()
 	end)
 
-	window_new_action(window, 'open_workspace', function()
+	window_new_action(window, "open_workspace", function()
 		new_window(pwd):present()
 	end)
 
-	window_new_action(window, 'open_new_workspace', function()
+	window_new_action(window, "open_new_workspace", function()
 		local dialog = create_file_dialog(
 			pwd,
-			'Select Workspace',
+			"Select Workspace",
 			window,
-			'SELECT_FOLDER',
-			'Open',
-			'Cancel')
+			"SELECT_FOLDER",
+			"Open",
+			"Cancel")
 		function dialog:on_response(id)
 			if id ~= Gtk.ResponseType.ACCEPT then return end
 			local f = dialog:get_file()
@@ -948,20 +949,20 @@ local function new_window(pwd)
 		dialog:show()
 	end)
 
-	window_new_action(window, 'project_dir', function()
-		lib.forkcdexec(pwd, '/usr/bin/xdg-open .')
+	window_new_action(window, "project_dir", function()
+		lib.forkcdexec(pwd, "/usr/bin/xdg-open .")
 	end)
 
-	window_new_action(window, 'shortcuts', function()
+	window_new_action(window, "shortcuts", function()
 		local shortcutwin = newshortwindow(window)
 		shortcutwin:present()
 	end)
 
-	window_new_action(window, 'about', function()
+	window_new_action(window, "about", function()
 		aboutdlg:present(window)
 	end)
 
-	if is_devel then window:add_css_class 'devel' end
+	if is_devel then window:add_css_class "devel" end
 	return window
 end
 
@@ -975,15 +976,15 @@ local function buffer_read_file(buffer, file_path)
 	local hdl = io.open(lib.decode_path(file_path), "r")
 	if hdl then
 		for line in hdl:lines() do
-			if line:match '\0' then
+			if line:match "\0" then
 				buffer:end_irreversible_action()
 				return fail
 			end
-			line = line:gsub('%s*$', '\n')
+			line = line:gsub("%s*$", "\n")
 			buffer:insert(buffer:get_end_iter(), line, #line)
 		end
 		-- Remove trailing newlines, so the last line of the file is the last line of the buffer.
-		buffer.text = (buffer.text:match '.*[^\n]') or ''
+		buffer.text = (buffer.text:match ".*[^\n]") or ""
 	end
 	buffer:set_modified(false)
 	buffer:end_irreversible_action()
@@ -993,9 +994,9 @@ end
 local function buffer_write_file(buffer, file_path)
 	local errmsg
 	local file = io.open(file_path, "w")
-	local text = buffer.text:match '.*[^\n]'
-	for line in text:gmatch '[^\n]*' do
-		line = line:gsub('%s*$', '\n')
+	local text = buffer.text:match ".*[^\n]"
+	for line in text:gmatch "[^\n]*" do
+		line = line:gsub("%s*$", "\n")
 		file:write(line)
 	end
 	if not err then
@@ -1039,8 +1040,8 @@ function editor:scroll_to_selection()
 	self.tv:scroll_to_mark(self:get_insert(), 0.2, false, 0.0, 0.0)
 end
 function editor:select_range(range_start, range_end)
-	assert(type(range_start) == 'number')
-	assert(type(range_end) == 'number')
+	assert(type(range_start) == "number")
+	assert(type(range_end) == "number")
 	local first = self.tv.buffer:get_start_iter()
 	first:forward_chars(range_start - 1)
 	local second = self.tv.buffer:get_start_iter()
@@ -1048,7 +1049,7 @@ function editor:select_range(range_start, range_end)
 	self:set_iters(first, second)
 end
 function editor:select_lines(addr1, addr2)
-	assert(type(addr1) == 'number')
+	assert(type(addr1) == "number")
 	if type(addr2) ~= "number" then addr2 = addr1 end
 	local lines = self.tv.buffer:get_line_count()
 	if addr1 > lines or addr2 > lines then return end
@@ -1088,7 +1089,7 @@ function editor:selection_delete()
 	self.tv.buffer:delete(self:get_iters())
 end
 function editor:selection_prepend(str)
-	assert(type(str) == 'string')
+	assert(type(str) == "string")
 	local first, _ = self:get_iters()
 	self.tv.buffer:insert(first, str, #str)
 	first = self.tv.buffer:get_iter_at_offset(first:get_offset() - utf8.len(str))
@@ -1096,7 +1097,7 @@ function editor:selection_prepend(str)
 	self:set_iters(first, second)
 end
 function editor:selection_append(str)
-	assert(type(str) == 'string')
+	assert(type(str) == "string")
 	local first, second = self:get_iters()
 	local firstoff = first:get_offset()
 	self.tv.buffer:insert(second, str, #str)
@@ -1104,7 +1105,7 @@ function editor:selection_append(str)
 	self:set_iters(first, second)
 end
 function editor:selection_replace(str)
-	assert(type(str) == 'string')
+	assert(type(str) == "string")
 	local first, second = self:get_iters()
 	self.tv.buffer:delete(first, second)
 	local offset = second:get_offset()
@@ -1113,7 +1114,7 @@ function editor:selection_replace(str)
 	self:set_iters(first, second)
 end
 function editor:selecton_wrap(str)
-	assert(type(str) == 'string')
+	assert(type(str) == "string")
 	self:selection_prepend(str)
 	self:selection_append(str)
 end
@@ -1155,7 +1156,7 @@ function editor:get_file_path()
 end
 function editor:set_file_path(path)
 	local oldpath = self:get_file_path()
-	assert(path and type(path) == 'string')
+	assert(path and type(path) == "string")
 	assert(not lib.is_dir(path))
 	local abspath = lib.absolute_path(path)
 	if oldpath == abspath then return end
@@ -1174,7 +1175,7 @@ function editor:edit_file(path)
 	if self.tv.buffer:get_modified() then
 		return
 	end
-	assert(type(path) == 'string')
+	assert(type(path) == "string")
 	self:set_file_path(path)
 	buffer_read_file(self.tv.buffer, self:get_file_path())
 end
@@ -1213,14 +1214,14 @@ function editor:begin_search()
 end
 
 function editor:update_matches(total, match)
-	if type(match) == 'number' and type(total) == 'number' then
-		self.search.matchnum.label = ('%d of %d'):format(match, total)
-	elseif type(total) == 'number' then
-		self.search.matchnum.label = ('%d'):format(total)
-	elseif type(total) == 'string' then
+	if type(match) == "number" and type(total) == "number" then
+		self.search.matchnum.label = ("%d of %d"):format(match, total)
+	elseif type(total) == "number" then
+		self.search.matchnum.label = ("%d"):format(total)
+	elseif type(total) == "string" then
 		self.search.matchnum.label = total
 	else
-		self.search.matchnum.label = ''
+		self.search.matchnum.label = ""
 	end
 end
 
@@ -1257,7 +1258,7 @@ function editor:findall(pattern, plain)
 		init = j + 1
 	end
 	if not #self.matches then
-		self:update_matches 'no match'
+		self:update_matches "no match"
 	end
 	self:update_matches(#self.matches)
 end
@@ -1315,7 +1316,7 @@ function app:on_activate()
 end
 
 function app:on_startup()
-	new_window(os.getenv 'PWD'):present()
+	new_window(os.getenv "PWD"):present()
 end
 
 return app:run()
