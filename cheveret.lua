@@ -558,11 +558,13 @@ function filerow:append(child)
 		t = self.cfiles
 	end
 	if #t == 0 and child.kind == "directory" then
-		local index = self:getlastindex()
+		-- There are no subdirectories, so always insert the child just below this row.
+		local index = self.lbr:get_index()
 		self.lbr.parent:insert(child.lbr, index + 1)
 		table.insert(t, child)
 		return
 	elseif #t == 0 and child.kind == "file" then
+		-- Insert the child below the last item in all subdirectories.
 		local index = self:getlastindex()
 		self.lbr.parent:insert(child.lbr, index + 1)
 		table.insert(t, child)
