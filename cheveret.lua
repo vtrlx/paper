@@ -306,6 +306,149 @@ local function get_focused_editor()
 	return editors_by_view[page.child]
 end
 
+-- Workspace Selector --
+
+local function create_file_dialog(pwd, ...)
+	local dlg = Gtk.FileChooserNative.new(...)
+	local f = Gio.File.new_for_path(pwd)
+	dlg:set_current_folder(f)
+	return dlg
+end
+
+-- Workspace Selector --
+
+local cfgdir = os.getenv("XDG_CONFIG_HOME") .. "/cheveret"
+os.execute(("mkdir -p '%s'"):format(cfgdir))
+local workspace_history_file = cfgdir .. "/workspace_history"
+os.execute(("touch '%s'"):format(workspace_history_file))
+
+local function read_workspaces()
+	local workspaces = {}
+	for line in io.lines(workspace_history_file) do
+		table.insert(workspaces, line)
+	end
+	return workspaces
+end
+
+local function write_workspaces(workspaces)
+	assert(type(workspaces) == "table")
+	local f = io.open(workspace_history_file, "w")
+	for n, ws in ipairs(workspaces) do
+		f:write(ws .. "\n")
+	end
+end
+
+local workspace_selector_window
+local function select_workspace(cb)
+	if workspace_selector_window then
+		workspace_selector_window:present()
+		return
+	end
+	workspace_selector_window = Adw.ApplicationWindow {
+		application = app,
+		height_request = 600,
+		width_request = 600,
+	}
+	if is_devel then
+		workspace_selector_window:add_css_class "devel"
+	end
+	workspace_selector_window.title = "Cheveret — Select Workspace"
+	local workspaces = read_workspaces()
+	local newbtn =Gtk.Button.new_from_icon_name ""
+	local wslist = Adw.PreferencesGroup {
+		title = "Previous Workspaces",
+		header_suffix = newbtn,
+	}
+	for n, ws in ipairs(workspaces) do
+		local dir = lib.encode_path(ws:match "^(.*)/")
+		local name = ws:match "[^/]*$"
+		local wsrow = Adw.ActionRow {
+			title = name,
+			subtitle = dir,
+		}
+		local btn = Gtk.Button.new_from_icon_name "folder-open-symbolic"
+		btn:add_css_class "flat"
+		btn.vexpand = false
+		btn.valign = "CENTER"
+		function btn:on_clicked()
+			cb(ws)
+			table.remove(workspaces, n)
+			table.insert(workspaces, 1, ws)
+			write_workspaces(workspaces)
+			workspace_selector_window:close()
+			workspace_selector_window = nil
+		end
+		wsrow:add_suffix(btn)
+		wsrow:set_activatable_widget(btn)
+		wslist:add(wsrow)
+	end
+	function newbtn:on_clicked()
+		local dialog = create_file_dialog(
+			os.getenv "PWD",
+			"Open New Workspace",
+			window,
+			"SELECT_FOLDER",
+			"Open",
+			"Cancel")
+		function dialog:on_response(id)
+			if id ~= Gtk.ResponseType.ACCEPT then return end
+			local f = dialog:get_file()
+			local path = f:get_path()
+			cb(path)
+			local idx
+			for n, ws in ipairs(workspaces) do
+				if path == ws then
+					table.remove(workspaces, n)
+					break
+				end
+			end
+			table.insert(workspaces, 1, path)
+			write_workspaces(workspaces)
+			workspace_selector_window:close()
+			workspace_selector_window = nil
+		end
+		dialog:show()
+	end
+	local contents = Gtk.Box {
+		orientation = "VERTICAL",
+		spacing = 24,
+	}
+	if #workspaces > 0 then
+		newbtn:add_css_class "flat"
+		newbtn.child = Adw.ButtonContent {
+			icon_name = "list-add-symbolic",
+			label = "New",
+		}
+		contents:append(wslist)
+	else
+		local chevlabel = Gtk.Label { label = "Cheveret" }
+		chevlabel:add_css_class "title-1"
+		contents:append(chevlabel)
+		newbtn.halign = "CENTER"
+		newbtn:add_css_class "pill"
+		newbtn:add_css_class "suggested-action"
+		newbtn.child = nil
+		newbtn.label "New Workspace…"
+		contents:append(newbtn)
+	end
+	local scrolled = Gtk.ScrolledWindow {
+		child = Adw.Clamp {
+			child = contents,
+			maximum_size = 500,
+		},
+	}
+	scrolled:add_css_class "undershoot-top"
+	scrolled:add_css_class "undershoot-bottom"
+	local tbview = Adw.ToolbarView {
+		content = scrolled,
+	}
+	tbview:add_top_bar(Adw.HeaderBar {
+		title_widget = Adw.WindowTitle.new("Cheveret", "Select Workspace"),
+	})
+	workspace_selector_window.content = tbview
+	workspace_selector_window:present()
+end
+
 -- File Row --
 
 -- FIXME: Keep a list of file rows by path in a tree, come up with a depth-first alphabetical ordering, then add/remove listbox rows in order when inotify adds/removes files.
@@ -561,11 +704,13 @@ local function create_file_pane(dir)
 	function box:on_row_activated(row)
 		callbacks_by_filerow[row]()
 	end
-	return Gtk.ScrolledWindow {
+	local scrolled = Gtk.ScrolledWindow {
 		child = box,
 		hscrollbar_policy = "NEVER",
 		vexpand = true,
-	}, box, in_handle
+	}
+	scrolled:add_css_class "undershoot-top"
+	return scrolled, box, in_handle
 end
 
 local function handle_inotify()
@@ -626,14 +771,7 @@ GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, coroutine.create(function()
 	until false
 end))
 
--- Window Builder --
-
-local function create_file_dialog(pwd, ...)
-	local dlg = Gtk.FileChooserNative.new(...)
-	local f = Gio.File.new_for_path(pwd)
-	dlg:set_current_folder(f)
-	return dlg
-end
+-- Main Workspace Window --
 
 local save_menu = Gio.Menu()
 save_menu:append("Save", "win.save_file")
@@ -939,21 +1077,9 @@ local function new_window(pwd)
 	end)
 
 	window_new_action(window, "open_new_workspace", function()
-		local dialog = create_file_dialog(
-			pwd,
-			"Select Workspace",
-			window,
-			"SELECT_FOLDER",
-			"Open",
-			"Cancel")
-		function dialog:on_response(id)
-			if id ~= Gtk.ResponseType.ACCEPT then return end
-			local f = dialog:get_file()
-			local path = f:get_path()
-			-- FIXME: Look at how Builder does this to prevent tab contamination
-			new_window(path):present()
-		end
-		dialog:show()
+		select_workspace(function(dir)
+			new_window(dir):present()
+		end)
 	end)
 
 	window_new_action(window, "project_dir", function()
@@ -1323,7 +1449,7 @@ function app:on_activate()
 end
 
 function app:on_startup()
-	new_window(os.getenv "PWD"):present()
+	select_workspace(function(dir) new_window(dir):present() end)
 end
 
 return app:run()
