@@ -1,13 +1,10 @@
 [Desktop Entry]
+Name=Cheveret Nightly
+Name[en]=Cheveret Nightly
+Comment=Featureless Text Editor (Development Version)
+Comment[en]=Featureless Text Editor (Development Version)
 Type=Application
-Icon=text-x-generic
-Name=Cheveret (dev)
-Name[en]=Cheveret (dev)
-Comment=Featureless Text Editor
-Comment[en]=Featureless Text Editor
-Exec=flatpak run ca.vlacroix.Cheveret.Devel
-Hidden=false
-NoDisplay=false
-StartupNotify=false
+Exec=cheveret
 Terminal=false
-StartupWMClass=ca.vlacroix.Cheveret.Devel
+Icon=text-x-generic
+StartupNotify=false
