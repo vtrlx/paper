@@ -357,7 +357,6 @@ local function select_workspace(cb)
 	local newbtn =Gtk.Button.new_from_icon_name ""
 	local wslist = Adw.PreferencesGroup {
 		title = "Previous Workspaces",
-		header_suffix = newbtn,
 	}
 	for n, ws in ipairs(workspaces) do
 		local dir = lib.encode_path(ws:match "^(.*)/")
@@ -419,19 +418,20 @@ local function select_workspace(cb)
 			icon_name = "list-add-symbolic",
 			label = "New",
 		}
+		wslist.header_suffix = newbtn
 		contents:append(wslist)
 	else
-		local chevlabel = Gtk.Label { label = "Cheveret" }
-		chevlabel:add_css_class "title-1"
-		contents:append(chevlabel)
 		newbtn.halign = "CENTER"
+		newbtn.valign = "CENTER"
 		newbtn:add_css_class "pill"
 		newbtn:add_css_class "suggested-action"
 		newbtn.child = nil
-		newbtn.label "New Workspace…"
-		contents:append(newbtn)
+		newbtn.label = "New Workspace…"
+		workspace_selector_window.height_request = 300
+		contents = newbtn
 	end
 	local scrolled = Gtk.ScrolledWindow {
+		vexpand = true,
 		child = Adw.Clamp {
 			child = contents,
 			maximum_size = 500,
