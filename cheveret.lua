@@ -650,6 +650,7 @@ function new_filerow(path, kind, depth)
 end
 
 local function populate_filerow_tree(params)
+	coroutine.yield(true)
 	local directories = {}
 	local files = {}
 	local in_id = params.in_handle:fileno()
@@ -697,12 +698,16 @@ local function create_file_pane(dir)
 	local root = new_filerow(dir, "root", -1)
 	rows_by_path[in_id][dir] = root
 	box:append(root.lbr)
-	populate_filerow_tree {
-		path = dir,
-		parent = root,
-		depth = 0,
-		in_handle = in_handle,
-	}
+	-- Populate the file list gradually to prevent the app from stalling when opening a new workspace.
+	GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1, coroutine.create(function()
+		populate_filerow_tree {
+			path = dir,
+			parent = root,
+			depth = 0,
+			in_handle = in_handle,
+		}
+		return false
+	end))
 	function box:on_row_activated(row)
 		callbacks_by_filerow[row]()
 	end
@@ -762,8 +767,7 @@ local function handle_inotify()
 		end
 	end
 end
--- Refresh about 30 times per second.
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, coroutine.create(function()
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5, coroutine.create(function()
 	repeat
 		local successful, r = pcall(handle_inotify)
 		if not successful then
