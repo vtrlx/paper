@@ -6,5 +6,5 @@ Comment[en]=Featureless Text Editor (Development Version)
 Type=Application
 Exec=cheveret
 Terminal=false
-Icon=text-x-generic
+Icon=ca.vlacroix.Cheveret.Devel
 StartupNotify=false
