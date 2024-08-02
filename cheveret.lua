@@ -203,7 +203,7 @@ local function new_editor()
 	}
 	local text_view = Gtk.TextView {
 		top_margin = 6,
-		bottom_margin = 6,
+		bottom_margin = 400,
 		left_margin = 12,
 		right_margin = 18,
 		pixels_above_lines = 2,
@@ -338,6 +338,50 @@ local function write_workspaces(workspaces)
 	end
 end
 
+local wsrow = {}
+local wsrow_mt = { __index = wsrow }
+
+function wsrow:mode(mode)
+	if mode == "open" then
+		self.checkbtn.visible = false
+		self.openbtn.visible = true
+		self.arow:set_activatable_widget(self.openbtn)
+	elseif mode == "check" then
+		self.checkbtn.visible = true
+		self.checkbtn.active = false
+		self.openbtn.visible = false
+		self.arow:set_activatable_widget(self.checkbtn)
+	end
+end
+
+function wsrow:getcheck()
+	return self.checkbtn.visible and self.checkbtn.active
+end
+
+local function new_wsrow(path, cb)
+	local checkbtn = Gtk.CheckButton {
+		valign = "CENTER",
+		vexpand = false,
+		visible = false,
+	}
+	local openbtn = Gtk.Button.new_from_icon_name "document-open-symbolic"
+	openbtn:add_css_class "flat"
+	local arow = Adw.ActionRow {
+		title = path:match "([^/]*)/?$",
+		subtitle = lib.encode_path(path:match "^(.*)/"),
+	}
+	arow:add_prefix(checkbtn)
+	arow:add_suffix(openbtn)
+	arow:set_activatable_widget(openbtn)
+	local r = {
+		checkbtn = checkbtn,
+		openbtn = openbtn,
+		arow = arow,
+	}
+	function openbtn:on_clicked() cb(path) end
+	return setmetatable(r, wsrow_mt)
+end
+
 local workspace_selector_window
 local function select_workspace(cb)
 	if workspace_selector_window then
@@ -354,32 +398,65 @@ local function select_workspace(cb)
 	end
 	workspace_selector_window.title = "Cheveret — Select Workspace"
 	local workspaces = read_workspaces()
-	local newbtn =Gtk.Button.new_from_icon_name ""
+	local wsrows = {}
+	local deletebtn = Gtk.Button {
+		child = Adw.ButtonContent {
+			icon_name = "edit-delete-symbolic",
+			label = "Forget",
+		}
+	}
+	deletebtn:add_css_class "destructive-action"
+	local newbtn = Gtk.Button {
+		child = Adw.ButtonContent {
+			icon_name = "folder-open-symbolic",
+			label = "New…",
+		}
+	}
 	local wslist = Adw.PreferencesGroup {
 		title = "Previous Workspaces",
+		header_suffix = openbtn,
 	}
-	for n, ws in ipairs(workspaces) do
-		local dir = lib.encode_path(ws:match "^(.*)/")
-		local name = ws:match "[^/]*$"
-		local wsrow = Adw.ActionRow {
-			title = name,
-			subtitle = dir,
-		}
-		local btn = Gtk.Button.new_from_icon_name "folder-open-symbolic"
-		btn:add_css_class "flat"
-		btn.vexpand = false
-		btn.valign = "CENTER"
-		function btn:on_clicked()
+	for _, ws in ipairs(workspaces) do
+		local r = new_wsrow(ws, function()
 			cb(ws)
-			table.remove(workspaces, n)
-			table.insert(workspaces, 1, ws)
-			write_workspaces(workspaces)
 			workspace_selector_window:close()
 			workspace_selector_window = nil
+		end)
+		table.insert(wsrows, r)
+		wslist:add(r.arow)
+	end
+	local selectbtn = Gtk.ToggleButton {
+		icon_name = "checkbox-checked-symbolic",
+	}
+	function selectbtn:on_toggled()
+		if selectbtn.active then
+			for _, r in ipairs(wsrows) do r:mode "check" end
+			wslist.header_suffix = deletebtn
+		else
+			for _, r in ipairs(wsrows) do r:mode "open" end
+			wslist.header_suffix = newbtn
 		end
-		wsrow:add_suffix(btn)
-		wsrow:set_activatable_widget(btn)
-		wslist:add(wsrow)
+	end
+	local contents = Gtk.Box {
+		orientation = "VERTICAL",
+		spacing = 24,
+	}
+	function deletebtn:on_clicked()
+		local to_delete = {}
+		for i = 1, #workspaces do
+			local n = 1 + #workspaces - i
+			if wsrows[n]:getcheck() then
+				table.insert(to_delete, n)
+			end
+		end
+		-- Backwards traversal to ensure indices are correct.
+		for _, n in ipairs(to_delete) do
+			wslist:remove(wsrows[n].arow)
+			table.remove(wsrows, n)
+			table.remove(workspaces, n)
+		end
+		write_workspaces(workspaces)
+		selectbtn.active = false
 	end
 	function newbtn:on_clicked()
 		local dialog = create_file_dialog(
@@ -408,18 +485,18 @@ local function select_workspace(cb)
 		end
 		dialog:show()
 	end
-	local contents = Gtk.Box {
-		orientation = "VERTICAL",
-		spacing = 24,
+	local header = Adw.HeaderBar {
+		title_widget = Adw.WindowTitle.new("Cheveret", "Select Workspace"),
 	}
 	if #workspaces > 0 then
-		newbtn:add_css_class "flat"
+		newbtn:add_css_class "suggested-action"
 		newbtn.child = Adw.ButtonContent {
 			icon_name = "list-add-symbolic",
 			label = "New",
 		}
 		wslist.header_suffix = newbtn
 		contents:append(wslist)
+		header:pack_end(selectbtn)
 	else
 		newbtn.halign = "CENTER"
 		newbtn.valign = "CENTER"
@@ -442,9 +519,7 @@ local function select_workspace(cb)
 	local tbview = Adw.ToolbarView {
 		content = scrolled,
 	}
-	tbview:add_top_bar(Adw.HeaderBar {
-		title_widget = Adw.WindowTitle.new("Cheveret", "Select Workspace"),
-	})
+	tbview:add_top_bar(header)
 	workspace_selector_window.content = tbview
 	workspace_selector_window:present()
 end
@@ -767,7 +842,7 @@ local function handle_inotify()
 		end
 	end
 end
-GLib.timeout_add(GLib.PRIORITY_DEFAULT, 5, coroutine.create(function()
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, coroutine.create(function()
 	repeat
 		local successful, r = pcall(handle_inotify)
 		if not successful then
