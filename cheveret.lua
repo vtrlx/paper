@@ -330,6 +330,17 @@ local function read_workspaces()
 	return workspaces
 end
 
+local function reorder_workspace(workspaces, path)
+	for i, ws in ipairs(workspaces) do
+		if ws == path then
+			table.remove(workspaces, i)
+			break
+		end
+	end
+	table.insert(workspaces, 1, path)
+	return workspaces
+end
+
 local function write_workspaces(workspaces)
 	assert(type(workspaces) == "table")
 	local f = io.open(workspace_history_file, "w")
@@ -378,7 +389,7 @@ local function new_wsrow(path, cb)
 		openbtn = openbtn,
 		arow = arow,
 	}
-	function openbtn:on_clicked() cb(path) end
+	function openbtn:on_clicked() cb() end
 	return setmetatable(r, wsrow_mt)
 end
 
@@ -399,16 +410,8 @@ local function select_new_workspace(cb, workspaces)
 		local path = f:get_path()
 		cb(path)
 		local idx
-		for n, ws in ipairs(workspaces) do
-			if path == ws then
-				table.remove(workspaces, n)
-				break
-			end
-		end
-		table.insert(workspaces, 1, path)
+		reorder_workspace(workspaces, path)
 		write_workspaces(workspaces)
-		workspace_selector_window:close()
-		workspace_selector_window = nil
 	end
 	dialog:show()
 end
@@ -457,8 +460,8 @@ local function new_workspace_selector(cb, workspaces)
 	for _, ws in ipairs(workspaces) do
 		local r = new_wsrow(ws, function()
 			cb(ws)
-			workspace_selector_window:close()
-			workspace_selector_window = nil
+			reorder_workspace(workspaces, ws)
+			write_workspaces(workspaces)
 		end)
 		table.insert(wsrows, r)
 		wslist:add(r.arow)
@@ -544,7 +547,11 @@ local function select_workspace(cb)
 	end
 	workspace_selector_window.title = "Cheveret — Select Workspace"
 	local workspaces = read_workspaces()
-	workspace_selector_window.content = new_workspace_selector(cb, workspaces)
+	workspace_selector_window.content = new_workspace_selector(function(...)
+		cb(...)
+		workspace_selector_window:close()
+		workspace_selector_window = nil
+	end, workspaces)
 	workspace_selector_window:present()
 end
 
@@ -1186,9 +1193,7 @@ local function new_window(pwd)
 	end)
 
 	window_new_action(window, "open_new_workspace", function()
-		select_workspace(function(dir)
-			new_window(dir):present()
-		end)
+		select_workspace(function(dir) new_window(dir):present() end)
 	end)
 
 	window_new_action(window, "project_dir", function()
