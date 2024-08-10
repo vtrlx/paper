@@ -382,22 +382,60 @@ local function new_wsrow(path, cb)
 	return setmetatable(r, wsrow_mt)
 end
 
+-- Only one is permitted, so it's held in a local variable.
 local workspace_selector_window
-local function select_workspace(cb)
-	if workspace_selector_window then
-		workspace_selector_window:present()
-		return
+
+local function select_new_workspace(cb, workspaces)
+	local dialog = create_file_dialog(
+		os.getenv "PWD",
+		"Open New Workspace",
+		window,
+		"SELECT_FOLDER",
+		"Open",
+		"Cancel")
+	function dialog:on_response(id)
+		if id ~= Gtk.ResponseType.ACCEPT then return end
+		local f = dialog:get_file()
+		local path = f:get_path()
+		cb(path)
+		local idx
+		for n, ws in ipairs(workspaces) do
+			if path == ws then
+				table.remove(workspaces, n)
+				break
+			end
+		end
+		table.insert(workspaces, 1, path)
+		write_workspaces(workspaces)
+		workspace_selector_window:close()
+		workspace_selector_window = nil
 	end
-	workspace_selector_window = Adw.ApplicationWindow {
-		application = app,
-		height_request = 600,
-		width_request = 600,
+	dialog:show()
+end
+
+-- Initial window when no workspaces are known.
+local function new_workspace_creator(cb)
+	local header = Adw.HeaderBar {
+		title_widget = Adw.WindowTitle.new("Cheveret", ""),
 	}
-	if is_devel then
-		workspace_selector_window:add_css_class "devel"
+	local btn = Gtk.Button.new_with_label "New Workspace…"
+	btn:add_css_class "pill"
+	btn:add_css_class "suggested-action"
+	btn:add_css_class "title-2"
+	btn.halign = "CENTER"
+	btn.valign = "CENTER"
+	function btn:on_clicked()
+		select_new_workspace(cb, {})
 	end
-	workspace_selector_window.title = "Cheveret — Select Workspace"
-	local workspaces = read_workspaces()
+	local tbview = Adw.ToolbarView {
+		content = btn,
+	}
+	tbview:add_top_bar(header)
+	return tbview
+end
+
+local function new_workspace_selector(cb, workspaces)
+	if #workspaces == 0 then return new_workspace_creator(cb) end
 	local wsrows = {}
 	local deletebtn = Gtk.Button {
 		child = Adw.ButtonContent {
@@ -457,56 +495,24 @@ local function select_workspace(cb)
 		end
 		write_workspaces(workspaces)
 		selectbtn.active = false
+		if #workspaces == 0 then
+			workspace_selector_window.content = new_workspace_creator(cb)
+		end
 	end
 	function newbtn:on_clicked()
-		local dialog = create_file_dialog(
-			os.getenv "PWD",
-			"Open New Workspace",
-			window,
-			"SELECT_FOLDER",
-			"Open",
-			"Cancel")
-		function dialog:on_response(id)
-			if id ~= Gtk.ResponseType.ACCEPT then return end
-			local f = dialog:get_file()
-			local path = f:get_path()
-			cb(path)
-			local idx
-			for n, ws in ipairs(workspaces) do
-				if path == ws then
-					table.remove(workspaces, n)
-					break
-				end
-			end
-			table.insert(workspaces, 1, path)
-			write_workspaces(workspaces)
-			workspace_selector_window:close()
-			workspace_selector_window = nil
-		end
-		dialog:show()
+		select_new_workspace(cb, workspaces)
 	end
 	local header = Adw.HeaderBar {
 		title_widget = Adw.WindowTitle.new("Cheveret", "Select Workspace"),
 	}
-	if #workspaces > 0 then
-		newbtn:add_css_class "suggested-action"
-		newbtn.child = Adw.ButtonContent {
-			icon_name = "list-add-symbolic",
-			label = "New",
-		}
-		wslist.header_suffix = newbtn
-		contents:append(wslist)
-		header:pack_end(selectbtn)
-	else
-		newbtn.halign = "CENTER"
-		newbtn.valign = "CENTER"
-		newbtn:add_css_class "pill"
-		newbtn:add_css_class "suggested-action"
-		newbtn.child = nil
-		newbtn.label = "New Workspace…"
-		workspace_selector_window.height_request = 300
-		contents = newbtn
-	end
+	newbtn:add_css_class "suggested-action"
+	newbtn.child = Adw.ButtonContent {
+		icon_name = "list-add-symbolic",
+		label = "New",
+	}
+	wslist.header_suffix = newbtn
+	contents:append(wslist)
+	header:pack_end(selectbtn)
 	local scrolled = Gtk.ScrolledWindow {
 		vexpand = true,
 		child = Adw.Clamp {
@@ -520,7 +526,25 @@ local function select_workspace(cb)
 		content = scrolled,
 	}
 	tbview:add_top_bar(header)
-	workspace_selector_window.content = tbview
+	return tbview
+end
+
+local function select_workspace(cb)
+	if workspace_selector_window then
+		workspace_selector_window:present()
+		return
+	end
+	workspace_selector_window = Adw.ApplicationWindow {
+		application = app,
+		height_request = 400,
+		width_request = 600,
+	}
+	if is_devel then
+		workspace_selector_window:add_css_class "devel"
+	end
+	workspace_selector_window.title = "Cheveret — Select Workspace"
+	local workspaces = read_workspaces()
+	workspace_selector_window.content = new_workspace_selector(cb, workspaces)
 	workspace_selector_window:present()
 end
 
@@ -734,10 +758,13 @@ local function populate_filerow_tree(params)
 	for file in lfs.dir(params.path) do
 		if file ~= "." and file ~= ".." then
 			local f = params.path .. "/" .. file
-			local attrs = lfs.symlinkattributes(f)
-			assert(type(attrs) == "table")
-			if attrs.mode == "directory" and file:sub(1, 1) ~= "." then
+			local attrs = lfs.attributes(f)
+			local symattrs = lfs.symlinkattributes(f)
+			assert(type(attrs) == "table"); assert(type(symattrs) == "table")
+			-- Intentionally exclude symlinked directories…
+			if symattrs.mode == "directory" and file:sub(1, 1) ~= "." then
 				table.insert(directories, f)
+			-- …but not symlinked files.
 			elseif attrs.mode == "file" then
 				table.insert(files, f)
 			end
@@ -808,10 +835,11 @@ local function handle_inotify()
 			local filepath = dirpath
 			if evt.name then filepath = dirpath .. "/" .. evt.name end
 			if (evt.mask & (inotify.IN_CREATE | inotify.IN_MOVED_TO)) ~= 0 then
-				local attrs = lfs.symlinkattributes(filepath)
+				local attrs = lfs.attributes(filepath)
+				local symattrs = lfs.symlinkattributes(filepath)
 				local file_name = filepath:match "([^/]+)/?$"
 				if type(attrs) ~= "table" then attrs = {} end
-				if attrs.mode == "directory" and file_name:sub(1, 1) ~= "." then
+				if symattrs.mode == "directory" and file_name:sub(1, 1) ~= "." then
 					local prow = rows_by_path[in_id][dirpath]
 					local row = new_filerow(filepath, "directory", prow.depth + 1)
 					prow:append(row)
