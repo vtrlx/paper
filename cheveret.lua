@@ -88,6 +88,7 @@ function lib.is_dir(file_name)
 	return lib.file_exists(file_name .. "/")
 end
 
+-- Iterates all lines in a file handle, returning true if the file contains any NUL characters and false otherwise. The file handle is then seeked back to the beginning for further reading.
 function lib.file_is_binary(file)
 	local is_binary = false
 	for line in file:lines() do
@@ -115,7 +116,6 @@ local app_title = "Cheveret"
 local app_version = lib.get_app_ver()
 local app  = Adw.Application {
 	application_id = app_id,
-	flags = Gio.ApplicationFlags.NON_UNIQUE,
 }
 
 -- Shortcuts from the GNOME HIG (https://developer.gnome.org/hig/reference/keyboard.html)
@@ -145,7 +145,7 @@ local function error(...)
 end
 
 local aboutdlg = Adw.AboutDialog {
-	application_icon = "text-x-generic", -- FIXME: use an actual app icon
+	application_icon = application_id, -- FIXME: Does not work; application icon disappears from the about dialog
 	application_name = "Cheveret",
 	copyright = "© 2024 Victoria Lacroix",
 	developer_name = "Victoria Lacroix",
@@ -281,6 +281,8 @@ local function open_file(path)
 		path = lib.absolute_path(path)
 		local e = editors_by_path[path]
 		if e then
+			-- File is already open so just grab focus.
+			-- FIXME: If file is open in another window, maybe create a new editor backed by the open file's GtkTextBuffer?
 			e:grab_focus()
 			return
 		end
