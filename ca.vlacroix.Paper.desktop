@@ -1,0 +1,14 @@
+[Desktop Entry]
+Categories=GNOME;GTK;Utility;TextEditor;
+Name=Paper
+Name[en]=Paper
+Keywords=write;edit;code;notepad;
+Keywords[en]=write;edit;code;notepad;
+Comment=Featureless Text Editor
+Comment[en]=Featureless Text Editor
+Type=Application
+Exec=paper %U
+MimeType=text/plain;
+Terminal=false
+Icon=text-x-generic
+StartupNotify=false

@@ -1,8 +1,9 @@
-# Directories not meant to be versioned
-wip
+# Private files not meant to be versioned
+TODO.md
 
 # Build files
-cheveret
+paper
 *.o
+*.bytecode
 .build
 .flatpak-builder
