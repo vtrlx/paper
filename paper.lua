@@ -225,8 +225,6 @@ local function new_editor()
 		pixels_below_lines = 2,
 		pixels_inside_wrap = 0,
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
-		valign = "FILL",
-		vexpand = true,
 	}
 	text_view:add_css_class "paper-editor"
 	local file_drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
@@ -234,18 +232,17 @@ local function new_editor()
 		local file = value:get_object()
 		open_file(file:get_path())
 	end
-	text_view:add_controller(file_drop_target)
-	-- Force monospace numbers regardless of font.
-	text_view:add_css_class "numeric"
+--	text_view:add_controller(file_drop_target)
+	text_view:add_css_class "numeric" -- Force monospace numbers regardless of font.
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
-		child = text_view,
 		hscrollbar_policy = "NEVER",
-		vexpand = true,
+		child = text_view,
 	}
-	local vbox = Gtk.Box { orientation = "VERTICAL" }
-	vbox:append(search_bar)
-	vbox:append(scrolled_win)
+	local tb_view = Adw.ToolbarView {
+		content = scrolled_win,
+	}
+	tb_view:add_top_bar(search_bar)
 	local e = {
 		matches = {},
 		search = {
@@ -256,17 +253,13 @@ local function new_editor()
 		},
 		tv = text_view,
 		scroll = scrolled_win,
-		widget = vbox,
+		widget = tb_view,
 	}
 	function e.tv.buffer:on_modified_changed()
 		e:update_title()
 	end
 	function e.tv.buffer:on_mark_set(iter, mark)
-		replace_button.sensitive = e:has_match()
-	end
-	function scrolled_win:on_map()
-		e:update_title()
-		e.tv:grab_focus()
+		replace_button.sensitive = e:match_selected()
 	end
 	function search_entry:on_search_changed()
 		if #self.text < 3 then
@@ -332,7 +325,6 @@ open_file = function(path)
 	editors_by_view[e.widget] = e
 	if path then editors_by_path[path] = e end
 	local page = tab_view:add_page(e.widget)
-	page:invalidate_thumbnail()
 	tab_view:set_selected_page(page)
 end
 
@@ -509,12 +501,18 @@ local function new_window()
 	}
 
 	local tab_view = Adw.TabView {
-		hexpand = true,
 		vexpand = true,
 	}
 	function tab_view:on_create_window()
 		return new_window()
 	end
+
+--[[
+	local tab_button = Adw.TabButton {
+		view = tab_view,
+		action_name = "overview.open",
+	}
+]]--
 
 	local title_icon = Gtk.Image()
 	local window_title = Adw.WindowTitle.new(app_title, "")
@@ -532,11 +530,11 @@ local function new_window()
 	content_header:pack_start(open_file_button)
 	content_header:pack_start(new_tab_button)
 	content_header:pack_end(menu_button)
+--	content_header:pack_end(tab_button)
 
 	local tab_bar = Adw.TabBar {
 		autohide = true,
 		view = tab_view,
-		valign = "START",
 	}
 
 	local content = Adw.ToolbarView {
@@ -546,7 +544,15 @@ local function new_window()
 	content:add_top_bar(content_header)
 	content:add_top_bar(tab_bar)
 
+--[[
+	local tab_overview = Adw.TabOverview {
+		child = content,
+		view = tab_view,
+	}
+]]--
+
 	local window = Adw.ApplicationWindow.new(app)
+--	window.content = tab_overview
 	window.content = content
 	window.title = app_title
 	window:set_default_size(800, 600)
@@ -588,6 +594,13 @@ local function new_window()
 		if not e then return end
 		-- This will be reset once the page is reattached.
 		function e:set_title() end
+	end
+	function tab_view:on_notify(spec)
+		if spec.name == "selected-page" and self.selected_page then
+			local e = editors_by_view[self.selected_page.child]
+			e:update_title()
+			e.tv:grab_focus()
+		end
 	end
 	function tab_view:on_close_page(page)
 		local e = editors_by_view[page.child]
@@ -1031,7 +1044,7 @@ end
 
 function editor:begin_search()
 	-- Replace the search entry if the current selection doesn't match
-	if not self.search.bar.search_mode_enabled and not self:has_match() then
+	if not self.search.bar.search_mode_enabled and not self:match_selected() then
 		self.search.entry.text = self:selection_get()
 	end
 	self.search.pattern.active = false
@@ -1098,7 +1111,7 @@ function editor:findall(pattern, plain)
 end
 
 -- Returns true if the currently selected text is on a match.
-function editor:has_match()
+function editor:match_selected()
 	local bound, ins = self:get_iters()
 	local bound_offset = bound:get_offset() + 1
 	local ins_offset = ins:get_offset() + 1
@@ -1152,7 +1165,7 @@ end
 
 -- Replaces the matched expression with the given text.
 function editor:replace(repl)
-	if not self:has_match() then return end
+	if not self:match_selected() then return end
 	self:selection_replace(repl)
 end
 

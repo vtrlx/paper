@@ -4,7 +4,8 @@ A text editor for GNOME that is as simple as writing on plain paper.
 
 ## Features
 
-- Edit text files
+-	write and edit text files
+-	search and replace in current file
 
 ## Building
 
