@@ -232,7 +232,7 @@ local function new_editor()
 		local file = value:get_object()
 		open_file(file:get_path())
 	end
---	text_view:add_controller(file_drop_target)
+	text_view:add_controller(file_drop_target)
 	text_view:add_css_class "numeric" -- Force monospace numbers regardless of font.
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
