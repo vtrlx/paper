@@ -238,11 +238,13 @@ local function new_editor()
 	local scrolled_win = Gtk.ScrolledWindow {
 		hscrollbar_policy = "NEVER",
 		child = text_view,
+		vexpand = true,
 	}
-	local tb_view = Adw.ToolbarView {
-		content = scrolled_win,
+	local box = Gtk.Box {
+		orientation = "VERTICAL",
 	}
-	tb_view:add_top_bar(search_bar)
+	box:append(search_bar)
+	box:append(scrolled_win)
 	local e = {
 		matches = {},
 		search = {
@@ -253,7 +255,7 @@ local function new_editor()
 		},
 		tv = text_view,
 		scroll = scrolled_win,
-		widget = tb_view,
+		widget = box,
 	}
 	function e.tv.buffer:on_modified_changed()
 		e:update_title()
@@ -261,42 +263,44 @@ local function new_editor()
 	function e.tv.buffer:on_mark_set(iter, mark)
 		replace_button.sensitive = e:match_selected()
 	end
-	function search_entry:on_search_changed()
-		if #self.text < 3 then
+	local function dosearch()
+		-- Forgo the search if the pattern is too small, because it'd take too long. If the user wants to match a small pattern, they can manually do a search by activating the entry or pressing the next/prev buttons to do so.
+		if #search_entry.text < 3 then
 			matchnum_label.label = ""
 			return
 		end
-		matchnum_label.label = e:findall(self.text, not pattern_toggle.active)
+		matchnum_label.label = e:findall(search_entry.text, not pattern_toggle.active)
+		replace_all_button.sensitive = #e.matches > 0
 	end
-	function search_entry:on_previous_match()
-		matchnum_label.label = e:prev_match(self.text, not pattern_toggle.active)
-	end
-	function prev_match:on_clicked()
+	local function prev()
 		matchnum_label.label = e:prev_match(search_entry.text, not pattern_toggle.active)
+		replace_all_button.sensitive = #e.matches > 0
 	end
-	function search_entry:on_next_match()
-		matchnum_label.label = e:next_match(self.text, not pattern_toggle.active)
-	end
-	function next_match:on_clicked()
+	local function next()
 		matchnum_label.label = e:next_match(search_entry.text, not pattern_toggle.active)
+		replace_all_button.sensitive = #e.matches > 0
 	end
-	function search_entry:on_activate()
-		matchnum_label.label = e:next_match(self.text, not pattern_toggle.active)
-	end
-	function replace_entry:on_activate()
+	local function repl()
 		if not replace_button.sensitive then return end
 		e:replace(self.text)
 		matchnum_label.label = e:next_match(search_entry.text, not pattern_toggle.active)
 	end
-	function replace_button:on_clicked()
-		e:replace(replace_entry.text)
-		matchnum_label.label = e:next_match(search_entry.text, not pattern_toggle.active)
-	end
-	function replace_all_button:on_clicked()
+	local function replall()
+		-- FIXME: Create Gtk.TextMark at selection, select it and delete marks after replacing
 		e:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
-		self.sensitive = false
+		replace_all_button.sensitive = false
 		matchnum_label.label = ""
 	end
+	pattern_toggle.on_clicked = dosearch
+	search_entry.on_search_changed = dosearch
+	search_entry.on_previous_match = prev
+	prev_match.on_clicked = prev
+	search_entry.on_next_match = next
+	next_match.on_clicked = next
+	search_entry.on_activate = next
+	replace_entry.on_activate = repl
+	replace_button.on_clicked = repl
+	replace_all_button.on_clicked = replall
 	return setmetatable(e, {
 		__index = editor,
 	})
@@ -514,13 +518,27 @@ local function new_window()
 	}
 ]]--
 
-	local title_icon = Gtk.Image()
+	local title_icon = Gtk.Button {
+		icon_name = nil,
+		visible = false,
+	}
+	function title_icon:on_clicked()
+		local e = get_focused_editor()
+		if not e then return end
+		if e:has_file() then
+			e:save()
+		else
+			save_file_dialog(window, e)
+		end
+	end
+
 	local window_title = Adw.WindowTitle.new(app_title, "")
-	local title_box = Gtk.Box { orientation = "HORIZONTAL" }
-	title_box:append(title_icon)
-	title_box:append(window_title)
-	-- This empty GtkImage actually balances the title widget so it stays centered.
-	title_box:append(Gtk.Image())
+	local title_box = Gtk.CenterBox {
+		orientation = "HORIZONTAL",
+		shrink_center_last = true,
+	}
+	title_box.start_widget = title_icon
+	title_box.center_widget = window_title
 
 	local content_header = Adw.HeaderBar {
 		title_widget = title_box,
@@ -568,10 +586,20 @@ local function new_window()
 		function e:set_title(title, subtitle, icon)
 			page.title = title
 			page.indicator_icon = icon
+			page.indicator_activatable = icon ~= nil
+			if page.indicator_activatable then
+				page.indicator_tooltip = "Save " .. (e:get_file_name() or "New File")
+			else
+				page.indicator_tooltip = e:get_file_name() or "New File"
+			end
 			if tab_view.selected_page == page then
 				window_title:set_title(title)
 				window_title:set_subtitle(subtitle)
-				title_icon.gicon = icon
+				if icon then
+					title_icon.icon_name = icon:to_string()
+				end
+				title_icon.tooltip_text = "Save " .. (e:get_file_name() or "New File")
+				title_icon.visible = icon ~= nil
 				if window_widgets[window] then
 					window_widgets[window].open_folder_action.enabled = self:has_file()
 				end
@@ -636,7 +664,7 @@ local function new_window()
 			if self:get_n_pages() == 0 then
 				window_title:set_title(app_title)
 				window_title:set_subtitle ""
-				title_icon.gicon = nil
+				title_icon.visible = false
 				content.top_bar_style = "FLAT"
 				if window_widgets[window] then
 					window_widgets[window].open_folder_action.enabled = false
@@ -644,6 +672,15 @@ local function new_window()
 			end
 		end
 		return true
+	end
+	function tab_view:on_indicator_activated(page)
+		local e = editors_by_view[page.child]
+		if not e then return end
+		if e:has_file() then
+			e:save()
+		else
+			save_file_dialog(window, e)
+		end
 	end
 
 	window_widgets[window] = {
@@ -1189,77 +1226,9 @@ function editor:replace_all(pattern, plain, repl)
 	self.tv.buffer:end_user_action()
 end
 
-function editor:begin_searchover()
-	local e = self
-
-	local search_entry = Gtk.SearchEntry {
-		placeholder_text = "Find in file…",
-		width_request = 240,
-	}
-	local prev_match = Gtk.Button.new_from_icon_name "go-up-symbolic"
-	local next_match = Gtk.Button.new_from_icon_name "go-down-symbolic"
-
-	local match_box = Gtk.Box { orientation = Gtk.Orientation.HORIZONTAL }
-	match_box:add_css_class "linked" -- No, but a tin can.
-	match_box:append(prev_match)
-	match_box:append(next_match)
-	local matchnum_label = Gtk.Label {}
-	matchnum_label:add_css_class "numeric"
-	local search_box = Gtk.Box {
-		orientation = Gtk.Orientation.HORIZONTAL,
-		spacing = 8,
-	}
-	search_box:append(search_entry)
-	search_box:append(match_box)
-	search_box:append(matchnum_label)
-
-	local popover = Gtk.Popover {
-		child = search_box,
-		pointing_to = self:selection_rect(),
-	}
-	function move_popover()
-		GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1, function()
-			popover.pointing_to = e:selection_rect()
-		end)
-	end
-
-	function search_entry:on_search_changed()
-		matchnum_label.label = e:findall(self.text, true)
-	end
-	function search_entry:on_previous_match()
-		matchnum_label.label = e:prev_match(self.text, true)
-		e:scroll_to_selection()
-		move_popover()
-	end
-	function prev_match:on_clicked()
-		matchnum_label.label = e:prev_match(search_entry.text, true)
-		e:scroll_to_selection()
-		move_popover()
-	end
-	function search_entry:on_next_match()
-		matchnum_label.label = e:next_match(self.text, true)
-		e:scroll_to_selection()
-		move_popover()
-	end
-	function next_match:on_clicked()
-		matchnum_label.label = e:next_match(search_entry.text, true)
-		e:scroll_to_selection()
-		move_popover()
-	end
-	function search_entry:on_activate()
-		matchnum_label.label = e:next_match(self.text, true)
-		e:scroll_to_selection()
-		move_popover()
-	end
-
-	popover:set_parent(self.tv)
-	popover:popup()
-end
-
 function editor:begin_jumpover()
 	self:scroll_to_selection()
 	self.scroll.kinetic_scrolling = false
-	local e = self
 	local lineentry = Gtk.Entry {
 		placeholder_text = "Go to line…",
 		width_request = 100,
@@ -1269,15 +1238,22 @@ function editor:begin_jumpover()
 		pointing_to = self:selection_rect(),
 	}
 
-	function lineentry:on_activate()
-		local n = tonumber(self.text)
-		if type(n) == "number" then
-			e:go_to(math.floor(n))
+	function lineentry:on_changed()
+		if self.text:match "^[0-9]+$" or self.text == "$" then
+			self:remove_css_class "error"
+		else
+			self:add_css_class "error"
+		end
+	end
+
+	function lineentry.on_activate()
+		if lineentry.text:match "^[0-9]+$" then
+			self:go_to(tonumber(lineentry.text))
 			popover:popdown()
-		elseif self.text == "$" then
-			local iter = e.tv.buffer:get_end_iter()
-			e:set_iters(iter, iter)
-			e:scroll_to_selection()
+		elseif lineentry.text == "$" then
+			local iter = self.tv.buffer:get_end_iter()
+			self:set_iters(iter, iter)
+			self:scroll_to_selection()
 			popover:popdown()
 		end
 	end
