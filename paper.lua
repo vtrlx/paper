@@ -993,7 +993,7 @@ function editor:get_title()
 	if self.file_dir then subtitle = lib.encode_path(self.file_dir) end
 	local icon
 	if self.tv.buffer:get_modified() then
-		icon = Gio.Icon.new_for_string "document-edit-symbolic"
+		icon = Gio.Icon.new_for_string "document-save-symbolic"
 	end
 	return title, subtitle, icon
 end
