@@ -344,17 +344,22 @@ end
 -- File Management --
 
 local file_dialog_path = lib.get_home_directory()
+local file_dialog
 
 local function open_file_dialog(window)
+	if file_dialog then return end
 	local e = get_focused_editor()
 	local dir = file_dialog_path
 	if e and e:has_file() then
 		dir = e:get_file_dir()
 	end
-	local dlg = Gtk.FileChooserNative.new("Open File", window, "OPEN")
-	dlg:set_current_folder(Gio.File.new_for_path(dir))
-	dlg:set_select_multiple(true)
-	function dlg:on_response(id)
+	file_dialog = Gtk.FileChooserNative.new("Open File", window, "OPEN")
+	file_dialog.modal = true
+	file_dialog.transient_for = window
+	file_dialog:set_current_folder(Gio.File.new_for_path(dir))
+	file_dialog:set_select_multiple(true)
+	function file_dialog:on_response(id)
+		file_dialog = nil
 		if id ~= Gtk.ResponseType.ACCEPT then return end
 		file_dialog_path = self:get_current_folder():get_path()
 		local list = self:get_files()
@@ -364,17 +369,21 @@ local function open_file_dialog(window)
 			open_file(file:get_path())
 		end
 	end
-	dlg:show()
+	file_dialog:show()
 end
 
 local function save_file_dialog(window, e)
+	if file_dialog then return end
 	local dir = file_dialog_path
 	if e:has_file() then
 		dir = e:get_file_dir()
 	end
-	local dlg = Gtk.FileChooserNative.new("Save File As", window, "SAVE")
-	dlg:set_current_folder(Gio.File.new_for_path(dir))
-	function dlg:on_response(id)
+	file_dialog = Gtk.FileChooserNative.new("Save File As", window, "SAVE")
+	file_dialog.modal = true
+	file_dialog.transient_for = window
+	file_dialog:set_current_folder(Gio.File.new_for_path(dir))
+	function file_dialog:on_response(id)
+		file_dialog = nil
 		if id ~= Gtk.ResponseType.ACCEPT then return end
 		local f = self:get_file()
 		if not f then return end
@@ -383,7 +392,7 @@ local function save_file_dialog(window, e)
 		file_dialog_path = dir
 		e:save(path)
 	end
-	dlg:show()
+	file_dialog:show()
 end
 
 -- Application Menus --
@@ -810,7 +819,8 @@ local function buffer_read_file(buffer, file_path)
 		if lib.file_is_binary(hdl) then
 			local window = app.active_window
 			if not window then return fail end
-			local dlg = Adw.AlertDialog.new("Invalid File Type", ("The file %q is not a text file, so it can't be opened."):format(lib.encode_path(name)))
+			local msg = ("The file %q is not a text file, so it can't be opened."):format(lib.encode_path(name))
+			local dlg = Adw.AlertDialog.new("Invalid File Type", msg)
 			dlg:add_response("cancel", "Continue without opening")
 			dlg:choose(window)
 			return fail
