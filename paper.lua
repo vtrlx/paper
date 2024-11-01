@@ -103,6 +103,8 @@ local Adw = lgi.require "Adw"
 local Gtk = lgi.require "Gtk"
 local Gdk = lgi.require "Gdk"
 
+local Paper = lgi.package "Paper"
+
 local app_id = lib.get_app_id()
 local is_devel = lib.get_is_devel()
 local app_title = "Paper"
@@ -152,6 +154,64 @@ local aboutdlg = Adw.AboutDialog {
 	version = lib.get_app_ver(),
 	website = nil, -- FIXME: assign actual website URL
 }
+
+--[[
+SECTION: File history
+]]--
+
+local histpath = ("%s/paper/history"):format(os.getenv "XDG_CONFIG_HOME")
+local prevfiles = {}
+
+local function writecfg()
+	local file = io.open(histpath, "w")
+	if not file then
+		print "fatal error: cannot save history"
+		return
+	end
+	for _, f in ipairs(prevfiles) do
+		file:write(f .. "\n")
+	end
+	file:close()
+end
+
+local function readcfg()
+	local file = io.open(histpath)
+	if not file then
+		return
+	end
+	for line in file:lines() do
+		table.insert(prevfiles, line)
+	end
+	file:close()
+end
+
+do -- Read history on startup.
+	readcfg()
+end
+
+--[[
+SECTION: Layout management
+
+GTK widgets do not provide signals for when they've resized. Instead, one is supposed to use a Layout Manager to handle this. Because the Layout Manager needs to be of a specific class, this will subclass it.
+]]--
+
+Paper:class("EditorLayoutManager", Gtk.LayoutManager)
+
+function Paper.EditorLayoutManager:do_allocate(widget, width, height, baseline)
+	local minmargin = 24
+	local maxwidth = 640
+	local maxinner = maxwidth - minmargin * 2
+	local totalmargin = math.max(minmargin, (width - maxinner) / 2)
+	-- In case of an uneven margin, this prevents there from being an extra pixel inside the margins.
+	widget.left_margin = math.floor(totalmargin)
+	widget.right_margin = math.ceil(totalmargin)
+	-- Something not clear in LGI's documents, one can invoke the class' default LayoutManager like so.
+	Gtk.TextView.do_size_allocate(widget, width, height, baseline)
+end
+
+--[[
+SECTION: Text editor
+]]--
 
 -- Holds the data for open files.
 local editors_by_view = {}
@@ -217,22 +277,25 @@ local function new_editor()
 	}
 	search_bar:connect_entry(search_entry)
 	local text_view = Gtk.TextView {
-		top_margin = 6,
+		top_margin = 12,
 		bottom_margin = 400,
-		left_margin = 12,
-		right_margin = 18,
+		left_margin = 24,
+		right_margin = 24,
 		pixels_above_lines = 2,
 		pixels_below_lines = 2,
 		pixels_inside_wrap = 0,
+		layout_manager = Paper.EditorLayoutManager(),
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
 	text_view:add_css_class "paper-editor"
+	--[[
 	local file_drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
 	function file_drop_target:on_drop(value)
 		local file = value:get_object()
 		open_file(file:get_path())
 	end
 	text_view:add_controller(file_drop_target)
+	]]--
 	text_view:add_css_class "numeric" -- Force monospace numbers regardless of font.
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
@@ -341,7 +404,9 @@ local function get_focused_editor()
 	return editors_by_view[page.child]
 end
 
--- File Management --
+--[[
+SECTION: File Management
+]]--
 
 local file_dialog_path = lib.get_home_directory()
 local file_dialog
@@ -395,7 +460,9 @@ local function save_file_dialog(window, e)
 	file_dialog:show()
 end
 
--- Application Menus --
+--[[
+SECTION: Application menus
+]]--
 
 local file_menu = Gio.Menu()
 file_menu:append("Save", "win.save_file")
@@ -481,7 +548,9 @@ local function newshortwindow(parent)
 	return shortcutwin
 end
 
--- Main Application Window --
+--[[
+SECTION: Main application window
+]]--
 
 local function window_new_action(win, name, cb)
 	local action = Gio.SimpleAction.new(name)
@@ -1301,6 +1370,10 @@ end
 
 function app:on_startup()
 	new_window()
+end
+
+function app:on_shutdown()
+	writecfg()
 end
 
 return app:run { lib.get_cli_args() }
