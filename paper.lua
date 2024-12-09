@@ -1,11 +1,13 @@
---[[ paper.lua — Text editor for GNOME that's simple as paper.
+--[[
+paper.lua — Text editor for GNOME that's simple as paper.
 Copyright © 2024 Victoria Lacroix
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>. ]]--
+You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+]]--
 
 -- Allows the libraries to be loaded by Flatpak.
 package.cpath = "/app/lib/lua/5.4/?.so;" .. package.cpath
@@ -93,6 +95,22 @@ function lib.file_is_binary(hdl)
 	return is_binary
 end
 
+-- Simple class implementation without inheritance.
+local function newclass(init)
+	local c = {}
+	local mt = {}
+	c.__index = c
+	function mt:__call(...)
+		local obj = setmetatable({}, c)
+		init(obj, ...)
+		return obj
+	end
+	function c:isa(klass)
+		return getmetatable(self) == klass
+	end
+	return setmetatable(c, mt)
+end
+
 -- Main Application --
 
 local lgi = require "lgi"
@@ -159,8 +177,69 @@ local aboutdlg = Adw.AboutDialog {
 SECTION: File history
 ]]--
 
-local histpath = ("%s/paper/history"):format(os.getenv "XDG_CONFIG_HOME")
-local prevfiles = {}
+local histbox = newclass(function(self, list)
+	for _, n in ipairs(list) do self:add(n) end
+	self.box = Gtk.ListBox {}
+	function self.box:on_row_activated(row)
+		local idx = row:get_index() + 1
+		local name = self[idx]
+		error "open not implemented due to scope"
+	end
+end)
+
+function histbox:remove(name)
+	local indices = {}
+	for i, v in ipairs(self) do
+		if v == name then table.insert(indices, i) end
+	end
+	for i = 1, #indices do
+		local iidx = #indices - i + 1
+		local idx = indices[iidx]
+		table.remove(self, idx)
+		local bidx = idx - 1
+		local c = self.box:get_row_at_index(bidx)
+		self.box:remove(c)
+	end
+end
+
+function histbox:add(name)
+	self:remove(name)
+	table.insert(self, name, 1)
+	local delbtn = Gtk.Button {
+		icon_name = "close-symbolic",
+		valign = "CENTER",
+	}
+	delbtn:add_css_class "circular"
+	delbtn:add_css_class "destructive-action"
+	function delbtn.on_clicked()
+		self:remove(name)
+	end
+	local dir, file = lib.dir_and_file(name)
+	local filelabel = Gtk.Label { label = file }
+	local dirlabel = Gtk.Label { label = lib.encode_path(dir) }
+	dirlabel:add_css_class "dim-label"
+	local nbox = Gtk.Box {
+		orientation = "VERTICAL",
+		spacing = 6,
+	}
+	local box = Gtk.Box {
+		orientation = "HORIZONTAL",
+		spacing = 12,
+		margin_start = 12,
+		margin_end = 12,
+		margin_top = 12,
+		margin_bottom = 12,
+	}
+	box:append(delbtn)
+	box:append(label)
+	local lbrow = Gtk.ListBoxRow {
+		child = widget,
+	}
+	self.box:prepend(lbrow)
+end
+
+local cfgdir = ("%s/paper"):format(os.getenv "XDG_CONFIG_HOME")
+local histfile = ("%s/history"):format(cfgdir)
 
 local function writecfg()
 	local file = io.open(histpath, "w")
@@ -176,9 +255,7 @@ end
 
 local function readcfg()
 	local file = io.open(histpath)
-	if not file then
-		return
-	end
+	if not file then return end
 	for line in file:lines() do
 		table.insert(prevfiles, line)
 	end
@@ -186,6 +263,7 @@ local function readcfg()
 end
 
 do -- Read history on startup.
+	if not lib.isdir(cfgdir) then os.execute("mkdir -p " .. histfile) end
 	readcfg()
 end
 
@@ -205,7 +283,6 @@ function Paper.EditorLayoutManager:do_allocate(widget, width, height, baseline)
 	-- In case of an uneven margin, this prevents there from being an extra pixel inside the margins.
 	widget.left_margin = math.floor(totalmargin)
 	widget.right_margin = math.ceil(totalmargin)
-	-- Something not clear in LGI's documents, one can invoke the class' default LayoutManager like so.
 	Gtk.TextView.do_size_allocate(widget, width, height, baseline)
 end
 
@@ -218,13 +295,7 @@ local editors_by_view = {}
 local editors_by_path = {}
 local window_widgets = {}
 
--- Table for text editor functions. They get defined later.
-local editor = {}
-
-local open_file
-
-local function new_editor()
-	-- FIXME: Add results count to search entry
+local editor = newclass(function(self)
 	local search_entry = Gtk.SearchEntry {
 		placeholder_text = "Find in file…",
 		width_request = 300,
@@ -288,14 +359,6 @@ local function new_editor()
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
 	text_view:add_css_class "paper-editor"
-	--[[
-	local file_drop_target = Gtk.DropTarget.new(Gio.File, Gdk.DragAction.COPY)
-	function file_drop_target:on_drop(value)
-		local file = value:get_object()
-		open_file(file:get_path())
-	end
-	text_view:add_controller(file_drop_target)
-	]]--
 	text_view:add_css_class "numeric" -- Force monospace numbers regardless of font.
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
@@ -308,23 +371,21 @@ local function new_editor()
 	}
 	box:append(search_bar)
 	box:append(scrolled_win)
-	local e = {
-		matches = {},
-		search = {
-			entry = search_entry,
-			bar = search_bar,
-			matchnum = matchnum_label,
-			pattern = pattern_toggle,
-		},
-		tv = text_view,
-		scroll = scrolled_win,
-		widget = box,
+	self.matches = {}
+	self.search = {
+		entry = search_entry,
+		bar = search_bar,
+		matchnum = matchnum_label,
+		pattern = pattern_toggle,
 	}
-	function e.tv.buffer:on_modified_changed()
-		e:update_title()
+	self.tv = text_view
+	self.scroll = scrolled_win
+	self.widget = box
+	function self.tv.buffer.on_modified_changed()
+		self:update_title()
 	end
-	function e.tv.buffer:on_mark_set(iter, mark)
-		replace_button.sensitive = e:match_selected()
+	function self.tv.buffer.on_mark_set(iter, mark)
+		replace_button.sensitive = self:match_selected()
 	end
 	local function dosearch()
 		-- Forgo the search if the pattern is too small, because it'd take too long. If the user wants to match a small pattern, they can manually do a search by activating the entry or pressing the next/prev buttons to do so.
@@ -332,25 +393,25 @@ local function new_editor()
 			matchnum_label.label = ""
 			return
 		end
-		matchnum_label.label = e:findall(search_entry.text, not pattern_toggle.active)
-		replace_all_button.sensitive = #e.matches > 0
+		matchnum_label.label = self:findall(search_entry.text, not pattern_toggle.active)
+		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function prev()
 		matchnum_label.label = e:prev_match(search_entry.text, not pattern_toggle.active)
-		replace_all_button.sensitive = #e.matches > 0
+		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function next()
 		matchnum_label.label = e:next_match(search_entry.text, not pattern_toggle.active)
-		replace_all_button.sensitive = #e.matches > 0
+		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function repl()
 		if not replace_button.sensitive then return end
-		e:replace(self.text)
-		matchnum_label.label = e:next_match(search_entry.text, not pattern_toggle.active)
+		self:replace(self.text)
+		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
 	end
 	local function replall()
 		-- FIXME: Create Gtk.TextMark at selection, select it and delete marks after replacing
-		e:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
+		self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
 		replace_all_button.sensitive = false
 		matchnum_label.label = ""
 	end
@@ -364,12 +425,9 @@ local function new_editor()
 	replace_entry.on_activate = repl
 	replace_button.on_clicked = repl
 	replace_all_button.on_clicked = replall
-	return setmetatable(e, {
-		__index = editor,
-	})
-end
+end)
 
-open_file = function(path)
+local function open_file(path)
 	assert(app.active_window)
 	local tab_view = window_widgets[app.active_window].tab_view
 	assert(tab_view)
@@ -383,7 +441,7 @@ open_file = function(path)
 			return
 		end
 	end
-	local e = new_editor()
+	local e = editor()
 	if type(path) == "string" then
 		if not e:edit_file(path) then return end
 		local iter = e.tv.buffer:get_start_iter()
@@ -718,6 +776,9 @@ local function new_window()
 		self:close_page_finish(page, do_close)
 		if not do_close then
 			local body = ("The file \"%s\" has unsaved changes."):format(e:get_file_name())
+			if not e:has_file() then
+				body = "This file has unsaved changes."
+			end
 			local dlg = Adw.AlertDialog.new("Save changes?", body)
 			dlg:add_response("close", "Keep open")
 			dlg:set_response_appearance("close", Adw.ResponseAppearance.DEFAULT)
