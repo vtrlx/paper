@@ -373,6 +373,11 @@ SECTION: File Management
 ]]--
 
 local file_dialog_path = lib.get_home_directory()
+local filefilters = Gio.ListStore.new(Gtk.FileFilter)
+filefilters:append(Gtk.FileFilter {
+	name = "Text files",
+	mime_types = { "text/*" },
+})
 
 local function open_file_dialog(window)
 	local e = get_focused_editor()
@@ -382,6 +387,7 @@ local function open_file_dialog(window)
 	end
 	local file_dialog = Gtk.FileDialog {
 		initial_folder = Gio.File.new_for_path(dir),
+		filters = filefilters,
 	}
 	local cancellable = Gio.Cancellable {}
 	function cancellable:on_cancelled()
@@ -409,6 +415,7 @@ local function save_file_dialog(window, e)
 	end
 	local file_dialog = Gtk.FileDialog {
 		initial_folder = Gio.File.new_for_path(dir),
+		filters = filefilters,
 	}
 	local cancellable = Gio.Cancellable {}
 	function cancellable:on_cancelled()
