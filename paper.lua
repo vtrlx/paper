@@ -174,100 +174,6 @@ local aboutdlg = Adw.AboutDialog {
 }
 
 --[[
-SECTION: File history
-]]--
-
-local histbox = newclass(function(self, list)
-	for _, n in ipairs(list) do self:add(n) end
-	self.box = Gtk.ListBox {}
-	function self.box:on_row_activated(row)
-		local idx = row:get_index() + 1
-		local name = self[idx]
-		error "open not implemented due to scope"
-	end
-end)
-
-function histbox:remove(name)
-	local indices = {}
-	for i, v in ipairs(self) do
-		if v == name then table.insert(indices, i) end
-	end
-	for i = 1, #indices do
-		local iidx = #indices - i + 1
-		local idx = indices[iidx]
-		table.remove(self, idx)
-		local bidx = idx - 1
-		local c = self.box:get_row_at_index(bidx)
-		self.box:remove(c)
-	end
-end
-
-function histbox:add(name)
-	self:remove(name)
-	table.insert(self, name, 1)
-	local delbtn = Gtk.Button {
-		icon_name = "close-symbolic",
-		valign = "CENTER",
-	}
-	delbtn:add_css_class "circular"
-	delbtn:add_css_class "destructive-action"
-	function delbtn.on_clicked()
-		self:remove(name)
-	end
-	local dir, file = lib.dir_and_file(name)
-	local filelabel = Gtk.Label { label = file }
-	local dirlabel = Gtk.Label { label = lib.encode_path(dir) }
-	dirlabel:add_css_class "dim-label"
-	local nbox = Gtk.Box {
-		orientation = "VERTICAL",
-		spacing = 6,
-	}
-	local box = Gtk.Box {
-		orientation = "HORIZONTAL",
-		spacing = 12,
-		margin_start = 12,
-		margin_end = 12,
-		margin_top = 12,
-		margin_bottom = 12,
-	}
-	box:append(delbtn)
-	box:append(label)
-	local lbrow = Gtk.ListBoxRow {
-		child = widget,
-	}
-	self.box:prepend(lbrow)
-end
-
-local cfgdir = ("%s/paper"):format(os.getenv "XDG_CONFIG_HOME")
-local histfile = ("%s/history"):format(cfgdir)
-
-local function writecfg()
-	local file = io.open(histpath, "w")
-	if not file then
-		print "fatal error: cannot save history"
-		return
-	end
-	for _, f in ipairs(prevfiles) do
-		file:write(f .. "\n")
-	end
-	file:close()
-end
-
-local function readcfg()
-	local file = io.open(histpath)
-	if not file then return end
-	for line in file:lines() do
-		table.insert(prevfiles, line)
-	end
-	file:close()
-end
-
-do -- Read history on startup.
-	if not lib.isdir(cfgdir) then os.execute("mkdir -p " .. histfile) end
-	readcfg()
-end
-
---[[
 SECTION: Layout management
 
 GTK widgets do not provide signals for when they've resized. Instead, one is supposed to use a Layout Manager to handle this. Because the Layout Manager needs to be of a specific class, this will subclass it.
@@ -1431,10 +1337,6 @@ end
 
 function app:on_startup()
 	new_window()
-end
-
-function app:on_shutdown()
-	writecfg()
 end
 
 return app:run { lib.get_cli_args() }
