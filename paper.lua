@@ -303,11 +303,11 @@ local editor = newclass(function(self)
 		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function prev()
-		matchnum_label.label = e:prev_match(search_entry.text, not pattern_toggle.active)
+		matchnum_label.label = self:prev_match(search_entry.text, not pattern_toggle.active)
 		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function next()
-		matchnum_label.label = e:next_match(search_entry.text, not pattern_toggle.active)
+		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
 		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function repl()
