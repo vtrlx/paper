@@ -175,7 +175,6 @@ local aboutdlg = Adw.AboutDialog {
 
 --[[
 SECTION: Layout management
-
 GTK widgets do not provide signals for when they've resized. Instead, one is supposed to use a Layout Manager to handle this. Because the Layout Manager needs to be of a specific class, this will subclass it.
 ]]--
 
@@ -258,8 +257,8 @@ local editor = newclass(function(self)
 		bottom_margin = 400,
 		left_margin = 24,
 		right_margin = 24,
-		pixels_above_lines = 2,
-		pixels_below_lines = 2,
+		pixels_above_lines = 3,
+		pixels_below_lines = 3,
 		pixels_inside_wrap = 0,
 		layout_manager = Paper.EditorLayoutManager(),
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
@@ -316,7 +315,6 @@ local editor = newclass(function(self)
 		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
 	end
 	local function replall()
-		-- FIXME: Create Gtk.TextMark at selection, select it and delete marks after replacing
 		self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
 		replace_all_button.sensitive = false
 		matchnum_label.label = ""
@@ -341,8 +339,6 @@ local function open_file(path)
 		path = lib.absolute_path(path)
 		local e = editors_by_path[path]
 		if e then
-			-- File is already open so just grab focus.
-			-- FIXME: If file is open in another window, maybe create a new editor backed by the open file's GtkTextBuffer?
 			e:grab_focus()
 			return
 		end
@@ -623,7 +619,7 @@ local function new_window()
 --	window.content = tab_overview
 	window.content = content
 	window.title = app_title
-	window:set_default_size(800, 600)
+	window:set_default_size(560, 640)
 
 	function open_file_button:on_clicked()
 		open_file_dialog(window)
@@ -650,8 +646,8 @@ local function new_window()
 				end
 				title_icon.tooltip_text = "Save " .. (e:get_file_name() or "New File")
 				title_icon.visible = icon ~= nil
-				if window_widgets[window] then
-					window_widgets[window].open_folder_action.enabled = self:has_file()
+				if window_widgets[window] and self:has_file() then
+					window_widgets[window].open_folder_action.enabled = true
 				end
 			end
 		end
@@ -689,17 +685,18 @@ local function new_window()
 		end
 		self:close_page_finish(page, do_close)
 		if not do_close then
-			local body = ("The file \"%s\" has unsaved changes."):format(e:get_file_name())
+			local body = "The file %q has unsaved changes."
+			body = body:format(e:get_file_name())
 			if not e:has_file() then
 				body = "This file has unsaved changes."
 			end
 			local dlg = Adw.AlertDialog.new("Save changes?", body)
 			dlg:add_response("close", "Keep open")
-			dlg:set_response_appearance("close", Adw.ResponseAppearance.DEFAULT)
+			dlg:set_response_appearance("close", "DEFAULT")
 			dlg:add_response("discard", "Close without saving")
-			dlg:set_response_appearance("discard", Adw.ResponseAppearance.DESTRUCTIVE)
+			dlg:set_response_appearance("discard", "DESTRUCTIVE")
 			dlg:add_response("save", "Save and close")
-			dlg:set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED)
+			dlg:set_response_appearance("save", "SUGGESTED")
 			function dlg:on_response(response)
 				if response == "discard" then
 					e.tv.buffer:set_modified(false)
@@ -751,11 +748,11 @@ local function new_window()
 			end
 		end
 		if #unsaved > 0 then
-			local dlg = Adw.AlertDialog.new("Save changes?", "Some of your work is unsaved.")
-			dlg:add_response("close", "Keep open")
-			dlg:set_response_appearance("close", Adw.ResponseAppearance.DEFAULT)
+			local dlg = Adw.AlertDialog.new("Quit?", "There are unsaved files.")
+			dlg:add_response("cancel", "Keep open")
+			dlg:set_response_appearance("cancel", "DEFAULT")
 			dlg:add_response("discard", "Discard all changes")
-			dlg:set_response_appearance("discard", Adw.ResponseAppearance.DESTRUCTIVE)
+			dlg:set_response_appearance("discard", "DESTRUCTIVE")
 			function dlg:on_response(response)
 				if response == "discard" then
 					for _, e in ipairs(unsaved) do e.tv.buffer:set_modified(false) end
@@ -863,7 +860,8 @@ local function buffer_read_file(buffer, file_path)
 		if lib.file_is_binary(hdl) then
 			local window = app.active_window
 			if not window then return fail end
-			local msg = ("The file %q is not a text file, so it can't be opened."):format(lib.encode_path(name))
+			local msg = "The file %q is not a text file, so it can't be opened."
+			msg = msg:format(lib.encode_path(name))
 			local dlg = Adw.AlertDialog.new("Invalid File Type", msg)
 			dlg:add_response("cancel", "Continue without opening")
 			dlg:choose(window)
@@ -1265,7 +1263,7 @@ function editor:replace_all(pattern, plain, repl)
 	self:findall(pattern, plain)
 	local i = #self.matches
 	self.tv.buffer:begin_user_action()
-	-- Matches are always sorted, so by going backwards with replacements, it can be guaranteed
+	-- Matches are always sorted, so by going backwards with replacements it can be guaranteed that matches won't move around. This makes TextMarks wholly unnecessary.
 	repeat
 		local m = self.matches[i]
 		self:select_range(m[1], m[2])
