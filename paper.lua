@@ -545,10 +545,10 @@ local function new_window()
 
 	local menu_button = Gtk.MenuButton {
 		direction = "DOWN",
-		halign = "END",
 		icon_name = "open-menu-symbolic",
 		menu_model = burger_menu,
 	}
+	menu_button.popover.halign = "END"
 
 	local tab_view = Adw.TabView {
 		vexpand = true,
