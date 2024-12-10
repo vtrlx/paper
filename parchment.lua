@@ -1,5 +1,5 @@
 --[[
-paper.lua — Text editor for GNOME that's simple as paper.
+parchment.lua — Text editing that feels like parchment.
 Copyright © 2024 Victoria Lacroix
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -15,7 +15,7 @@ package.path = "/app/share/lua/5.4/?.lua;" .. package.path
 
 -- Linux Support Library --
 
-local lib = require "paperlib"
+local lib = require "parchmentlib"
 
 function lib.get_home_directory()
 	return os.getenv "HOME"
@@ -111,7 +111,9 @@ local function newclass(init)
 	return setmetatable(c, mt)
 end
 
--- Main Application --
+--[[
+SECTION: Main application
+]]--
 
 local lgi = require "lgi"
 
@@ -121,15 +123,15 @@ local Adw = lgi.require "Adw"
 local Gtk = lgi.require "Gtk"
 local Gdk = lgi.require "Gdk"
 
-local Paper = lgi.package "Paper"
+local Parchment = lgi.package "Parchment"
 
 local app_id = lib.get_app_id()
 local is_devel = lib.get_is_devel()
-local app_title = "Paper"
+local app_title = "Parchment"
 local app_version = lib.get_app_ver()
 local app  = Adw.Application {
 	application_id = app_id,
-	flags = Gio.ApplicationFlags.DEFAULT_FLAGS | Gio.ApplicationFlags.HANDLES_OPEN,
+	flags = "HANDLES_OPEN",
 }
 
 -- Shortcuts from the GNOME HIG (https://developer.gnome.org/hig/reference/keyboard.html)
@@ -167,7 +169,7 @@ local aboutdlg = Adw.AboutDialog {
 	developers = {
 		"Victoria Lacroix <victoria@vlacroix.ca>",
 	},
-	issue_url = nil, -- FIXME: assign actual issue URL
+	issue_url = "https://github.com/vtrlx/parchment/issues",
 	license_type = "GPL_3_0",
 	version = lib.get_app_ver(),
 	website = nil, -- FIXME: assign actual website URL
@@ -178,21 +180,21 @@ SECTION: Layout management
 GTK widgets do not provide signals for when they've resized. Instead, one is supposed to use a Layout Manager to handle this. Because the Layout Manager needs to be of a specific class, this will subclass it.
 ]]--
 
-Paper:class("EditorLayoutManager", Gtk.LayoutManager)
+Parchment:class("EditorLayoutManager", Gtk.LayoutManager)
 
-function Paper.EditorLayoutManager:do_allocate(widget, width, height, baseline)
+function Parchment.EditorLayoutManager:do_allocate(widget, width, height, baseline)
 	local minmargin = 24
 	local maxwidth = 640
 	local maxinner = maxwidth - minmargin * 2
 	local totalmargin = math.max(minmargin, (width - maxinner) / 2)
-	-- In case of an uneven margin, this prevents there from being an extra pixel inside the margins.
+	-- In case of the margin space being an odd number, the extra pixel gets assigned to the right side.
 	widget.left_margin = math.floor(totalmargin)
 	widget.right_margin = math.ceil(totalmargin)
 	Gtk.TextView.do_size_allocate(widget, width, height, baseline)
 end
 
 --[[
-SECTION: Text editor
+SECTION: Text editor constructor
 ]]--
 
 -- Holds the data for open files.
@@ -270,10 +272,10 @@ local editor = newclass(function(self)
 		pixels_above_lines = 3,
 		pixels_below_lines = 3,
 		pixels_inside_wrap = 0,
-		layout_manager = Paper.EditorLayoutManager(),
+		layout_manager = Parchment.EditorLayoutManager(),
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
-	text_view:add_css_class "paper-editor"
+	text_view:add_css_class "parchment-editor"
 	text_view:add_css_class "numeric" -- Force monospace numbers regardless of font.
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
@@ -756,7 +758,7 @@ local function new_window()
 			end
 		end
 		if #unsaved > 0 then
-			local dlg = Adw.AlertDialog.new("Quit?", "There are unsaved files.")
+			local dlg = Adw.AlertDialog.new("Quit?", "There are unsaved changes.")
 			dlg:add_response("cancel", "Keep open")
 			dlg:set_response_appearance("cancel", "DEFAULT")
 			dlg:add_response("discard", "Discard all changes")
@@ -856,7 +858,9 @@ local function new_window()
 	return tab_view
 end
 
--- Text Editor --
+--[[
+SECTION: Text editor definitions
+]]--
 
 local function buffer_read_file(buffer, file_path)
 	local dir, name = lib.dir_and_file(file_path)
@@ -906,13 +910,6 @@ local function buffer_write_file(buffer, file_path)
 	file:close()
 	return success
 end
-
---[[
-Unless otherwise stated, this editor uses 1-indexing for the functions it defines.
-Line 1 is the first line of the file.
-Char 1 is the first char of a line.
-…etc…
---]]
 
 function editor:get_insert()
 	return self.tv.buffer:get_insert()
@@ -1323,12 +1320,14 @@ function editor:begin_jumpover()
 	self.scroll.kinetic_scrolling = true
 end
 
--- Custom Styling --
+--[[
+SECTION: Styles
+]]--
 
 do -- Initialize custom CSS.
 	local provider = Gtk.CssProvider()
 	provider:load_from_string [[
-		.paper-editor {
+		.parchment-editor {
 			font-size: 110%;
 		}
 	]]
@@ -1336,7 +1335,9 @@ do -- Initialize custom CSS.
 	Gtk.StyleContext.add_provider_for_display(display, provider, 1)
 end
 
--- Application Features --
+--[[
+SECTION: Application callbacks and startup
+]]--
 
 function app:on_open(files)
 	for _, f in ipairs(files) do

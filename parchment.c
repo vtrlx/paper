@@ -1,4 +1,4 @@
-/* paper.c — Startup and support code for Paper.
+/* parchment.c — Startup and support code for Parchment.
 Copyright © 2024 Victoria Lacroix
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -34,9 +34,9 @@ static int
 get_app_id_lua(lua_State *L)
 {
 #ifdef DEVEL
-	lua_pushstring(L, "ca.vlacroix.Paper.Devel");
+	lua_pushstring(L, "ca.vlacroix.Parchment.Devel");
 #else
-	lua_pushstring(L, "ca.vlacroix.Paper");
+	lua_pushstring(L, "ca.vlacroix.Parchment");
 #endif
 	return 1;
 }
@@ -88,7 +88,7 @@ forkexec_lua(lua_State *L)
 	return 0;
 }
 
-static const luaL_Reg paperlib[] = {
+static const luaL_Reg parchmentlib[] = {
 	{ "get_is_devel", get_is_devel_lua },
 	{ "get_app_id", get_app_id_lua },
 	{ "get_app_ver", get_app_ver_lua },
@@ -98,15 +98,15 @@ static const luaL_Reg paperlib[] = {
 	{ NULL, NULL },
 };
 
-extern char _binary_paper_bytecode_start[];
-extern char _binary_paper_bytecode_end[];
+extern char _binary_parchment_bytecode_start[];
+extern char _binary_parchment_bytecode_end[];
 
 int
 main(int _argc, char **_argv)
 {
 	lua_State *L;
 	const char *message;
-	size_t paper_bytecode_len = ((size_t)&_binary_paper_bytecode_end) - ((size_t)&_binary_paper_bytecode_start);
+	size_t parchment_bytecode_len = ((size_t)&_binary_parchment_bytecode_end) - ((size_t)&_binary_parchment_bytecode_start);
 
 	argc = _argc;
 	argv = _argv;
@@ -116,25 +116,25 @@ main(int _argc, char **_argv)
 	lua_getglobal(L, "package");
 	lua_getfield(L, -1, "loaded");
 	lua_remove(L, -2);
-	lua_pushstring(L, "paperlib");
-	luaL_newlib(L, paperlib);
+	lua_pushstring(L, "parchmentlib");
+	luaL_newlib(L, parchmentlib);
 	lua_settable(L, -3);
 	lua_remove(L, -1);
 
-	switch (luaL_loadbuffer(L, _binary_paper_bytecode_start, paper_bytecode_len, "paper")) {
+	switch (luaL_loadbuffer(L, _binary_parchment_bytecode_start, parchment_bytecode_len, "parchment")) {
 	case LUA_ERRSYNTAX:
-		fprintf(stderr, "Failed to load Paper: embedded binary is malformed.\n");
+		fprintf(stderr, "Failed to load Parchment: embedded binary is malformed.\n");
 		message = luaL_checkstring(L, -1);
 		if (message)
 			fprintf(stderr, "%s\n", message);
 		return 1;
 	case LUA_ERRMEM:
-		fprintf(stderr, "Failed to load Paper: could not allocate memory.\n");
+		fprintf(stderr, "Failed to load Parchment: could not allocate memory.\n");
 		return 2;
 	case LUA_OK:
 		break;
 	default:
-		fprintf(stderr, "Failed to load Paper: an unhandled error ocurred.\n");
+		fprintf(stderr, "Failed to load Parchment: an unhandled error ocurred.\n");
 		return -1;
 	}
 

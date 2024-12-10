@@ -1,9 +1,9 @@
 {
-	"app-id": "ca.vlacroix.Paper",
+	"app-id": "ca.vlacroix.Parchment.Devel",
 	"runtime": "org.gnome.Platform",
 	"runtime-version": "47",
 	"sdk": "org.gnome.Sdk",
-	"command": "paper",
+	"command": "parchment",
 	"finish-args": [
 		"--device=dri",
 		"--share=ipc",
@@ -37,11 +37,11 @@
 			"sha256": "003984a7a33236cc2368bf8c87905b6867d1292f844df236051a7b45f134d272"
 		}]
 	}, {
-		"name": "paper",
+		"name": "parchment",
 		"buildsystem": "simple",
 		"build-commands": [
-			"make",
-			"make install"
+			"make DEVEL=true",
+			"make install DEVEL=true"
 		],
 		"sources": [{
 			"type": "dir",

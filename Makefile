@@ -1,15 +1,15 @@
 PREFIX = /app
 
-BIN = paper
-CSRCS = paper.c
-OBJS = paper_bytecode.o
+BIN = parchment
+CSRCS = parchment.c
+OBJS = parchment_bytecode.o
 LIBS = -llua -ldl -lm
 CFLAGS = $(LIBS) -Wl,-E
 
-APPID = ca.vlacroix.Paper
+APPID = ca.vlacroix.Parchment
 ifdef DEVEL
 CFLAGS += -DDEVEL
-APPID = ca.vlacroix.Paper.Devel
+APPID = ca.vlacroix.Parchment.Devel
 endif
 
 DESKTOP_FILE = $(APPID).desktop
