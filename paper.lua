@@ -201,37 +201,42 @@ local editors_by_path = {}
 local window_widgets = {}
 
 local editor = newclass(function(self)
-	local search_entry = Gtk.SearchEntry {
+	local searchimg = Gtk.Image { icon_name = "system-search-symbolic" }
+	local search_entry = Gtk.Text {
 		placeholder_text = "Find in file…",
-		width_request = 300,
+		hexpand = true,
 	}
+	local matchnum_label = Gtk.Label {
+		margin_start = 18,
+		margin_end = 6,
+		halign = "END",
+		hexpand = false,
+	}
+	matchnum_label:add_css_class "numeric"
+	local sbox = Gtk.Box {
+		orientation = "HORIZONTAL",
+		css_name = "entry",
+	}
+	sbox:append(searchimg)
+	sbox:append(search_entry)
+	sbox:append(matchnum_label)
 	local pattern_toggle = Gtk.ToggleButton {
 		label = ".*",
 		tooltip_text = "match by pattern",
 	}
 	local prev_match = Gtk.Button.new_from_icon_name "go-up-symbolic"
 	local next_match = Gtk.Button.new_from_icon_name "go-down-symbolic"
-	local search_ctrl_box = Gtk.Box { orientation = "HORIZONTAL" }
-	search_ctrl_box:add_css_class "linked"
-	search_ctrl_box:append(search_entry)
-	search_ctrl_box:append(pattern_toggle)
-	search_ctrl_box:append(prev_match)
-	search_ctrl_box:append(next_match)
-	local matchnum_label = Gtk.Label {
-		margin_start = 6,
-		halign = "START",
-		hexpand = false,
-	}
-	matchnum_label:add_css_class "numeric"
 	local search_box = Gtk.Box {
 		orientation = "HORIZONTAL",
-		spacing = 6,
 	}
-	search_box:append(search_ctrl_box)
-	search_box:append(matchnum_label)
+	search_box:add_css_class "linked"
+	search_box:append(sbox)
+	search_box:append(pattern_toggle)
+	search_box:append(prev_match)
+	search_box:append(next_match)
 	local replace_entry = Gtk.Entry {
 		placeholder_text = "Replace with…",
-		width_request = 300,
+		hexpand = true,
 	}
 	local replace_button = Gtk.Button.new_with_label "Replace"
 	local replace_all_button = Gtk.Button.new_with_label "Replace All"
@@ -246,8 +251,13 @@ local editor = newclass(function(self)
 	}
 	search_bar_box:append(search_box)
 	search_bar_box:append(replace_box)
-	local search_bar = Gtk.SearchBar {
+	local search_bar_clamp = Adw.Clamp {
+		orientation = "HORIZONTAL",
 		child = search_bar_box,
+		maximum_size = 480,
+	}
+	local search_bar = Gtk.SearchBar {
+		child = search_bar_clamp,
 		search_mode_enabled = false,
 		show_close_button = true,
 	}
@@ -320,13 +330,11 @@ local editor = newclass(function(self)
 		matchnum_label.label = ""
 	end
 	pattern_toggle.on_clicked = dosearch
-	search_entry.on_search_changed = dosearch
-	search_entry.on_previous_match = prev
+	search_entry.buffer.on_notify.text = dosearch
 	prev_match.on_clicked = prev
-	search_entry.on_next_match = next
 	next_match.on_clicked = next
 	search_entry.on_activate = next
-	replace_entry.on_activate = repl
+--	replace_entry.on_activate = repl
 	replace_button.on_clicked = repl
 	replace_all_button.on_clicked = replall
 end)
