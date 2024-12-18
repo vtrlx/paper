@@ -13,7 +13,9 @@ You should have received a copy of the GNU General Public License along with thi
 package.cpath = "/app/lib/lua/5.4/?.so;" .. package.cpath
 package.path = "/app/share/lua/5.4/?.lua;" .. package.path
 
--- Linux Support Library --
+--[[
+SECTION: Support library
+]]--
 
 local lib = require "parchmentlib"
 
@@ -172,8 +174,13 @@ local aboutdlg = Adw.AboutDialog {
 	issue_url = "https://github.com/vtrlx/parchment/issues",
 	license_type = "GPL_3_0",
 	version = lib.get_app_ver(),
-	website = nil, -- FIXME: assign actual website URL
+	website = "https://www.vlacroix.ca/apps/parchment/",
 }
+
+aboutdlg.comments = [[
+<b>Special Thanks</b>
+• Brage Fuglseth for suggesting the name "Parchment"
+]]
 
 --[[
 SECTION: Layout management
@@ -575,7 +582,7 @@ local function new_window()
 ]]--
 
 	local title_icon = Gtk.Button {
-		icon_name = nil,
+		icon_name = "document-save-symbolic",
 		visible = false,
 	}
 	function title_icon:on_clicked()
@@ -629,7 +636,7 @@ local function new_window()
 --	window.content = tab_overview
 	window.content = content
 	window.title = app_title
-	window:set_default_size(560, 640)
+	window:set_default_size(640, 700)
 
 	function open_file_button:on_clicked()
 		open_file_dialog(window)
@@ -641,21 +648,17 @@ local function new_window()
 		content.top_bar_style = "RAISED_BORDER"
 		function e:set_title(title, subtitle, icon)
 			page.title = title
-			page.indicator_icon = icon
-			page.indicator_activatable = icon ~= nil
-			if page.indicator_activatable then
-				page.indicator_tooltip = "Save " .. (e:get_file_name() or "New File")
+			if icon then
+				local iname = "document-edit-symbolic"
+				page.indicator_icon = Gio.Icon.new_for_string(iname)
 			else
-				page.indicator_tooltip = e:get_file_name() or "New File"
+				page.indicator_icon = nil
 			end
 			if tab_view.selected_page == page then
 				window_title:set_title(title)
 				window_title:set_subtitle(subtitle)
-				if icon then
-					title_icon.icon_name = icon:to_string()
-				end
-				title_icon.tooltip_text = "Save " .. (e:get_file_name() or "New File")
-				title_icon.visible = icon ~= nil
+				title_icon.tooltip_text = "Save " .. title
+				title_icon.visible = icon
 				if window_widgets[window] and self:has_file() then
 					window_widgets[window].open_folder_action.enabled = true
 				end
@@ -733,15 +736,6 @@ local function new_window()
 		end
 		return true
 	end
-	function tab_view:on_indicator_activated(page)
-		local e = editors_by_view[page.child]
-		if not e then return end
-		if e:has_file() then
-			e:save()
-		else
-			save_file_dialog(window, e)
-		end
-	end
 
 	window_widgets[window] = {
 		tab_view = tab_view,
@@ -758,7 +752,7 @@ local function new_window()
 			end
 		end
 		if #unsaved > 0 then
-			local dlg = Adw.AlertDialog.new("Quit?", "There are unsaved changes.")
+			local dlg = Adw.AlertDialog.new("Close window?", "There are unsaved changes.")
 			dlg:add_response("cancel", "Keep open")
 			dlg:set_response_appearance("cancel", "DEFAULT")
 			dlg:add_response("discard", "Discard all changes")
@@ -1048,10 +1042,7 @@ function editor:get_title()
 	local title = self.file_name or "New File"
 	local subtitle = ""
 	if self.file_dir then subtitle = lib.encode_path(self.file_dir) end
-	local icon
-	if self.tv.buffer:get_modified() then
-		icon = Gio.Icon.new_for_string "document-save-symbolic"
-	end
+	local icon = self.tv.buffer:get_modified()
 	return title, subtitle, icon
 end
 
