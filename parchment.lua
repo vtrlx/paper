@@ -1277,15 +1277,28 @@ end
 function editor:begin_jumpover()
 	self:scroll_to_selection()
 	self.scroll.kinetic_scrolling = false
+	local _, ins = self:get_iters()
+	local lineno = ins:get_line() + 1
+	local colno = ins:get_line_index() + 1
+	local linelabel = Gtk.Label {
+		label = ("Line #%d, Column #%d"):format(lineno, colno),
+		halign = "START",
+	}
 	local lineentry = Gtk.Entry {
 		placeholder_text = "Go to line…",
+		halign = "FILL",
 		width_request = 100,
 	}
+	local box = Gtk.Box {
+		orientation = "VERTICAL",
+		spacing = 6,
+	}
+	box:append(linelabel)
+	box:append(lineentry)
 	local popover = Gtk.Popover {
-		child = lineentry,
+		child = box,
 		pointing_to = self:selection_rect(),
 	}
-
 	function lineentry:on_changed()
 		if self.text:match "^[0-9]+$" or self.text == "$" then
 			self:remove_css_class "error"
@@ -1293,7 +1306,6 @@ function editor:begin_jumpover()
 			self:add_css_class "error"
 		end
 	end
-
 	function lineentry.on_activate()
 		if lineentry.text:match "^[0-9]+$" then
 			self:go_to(tonumber(lineentry.text))
@@ -1305,7 +1317,6 @@ function editor:begin_jumpover()
 			popover:popdown()
 		end
 	end
-
 	popover:set_parent(self.tv)
 	popover:popup()
 	self.scroll.kinetic_scrolling = true
