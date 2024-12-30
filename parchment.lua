@@ -97,6 +97,14 @@ function lib.file_is_binary(hdl)
 	return is_binary
 end
 
+function lib.escapepattern(str)
+	return str:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+end
+
+function lib.escaperepl(str)
+	return str:gsub("%%([0-9])", "%%%%%1")
+end
+
 -- Simple class implementation without inheritance.
 local function newclass(init)
 	local c = {}
@@ -248,11 +256,15 @@ local editor = newclass(function(self)
 		hexpand = true,
 	}
 	local replace_button = Gtk.Button.new_with_label "Replace"
-	local replace_all_button = Gtk.Button.new_with_label "Replace All"
+	local replace_in_sel_button = Gtk.Button.new_with_label "Selected"
+	replace_in_sel_button.tooltip_text = "Replace all matches in selection"
+	local replace_all_button = Gtk.Button.new_with_label "All"
+	replace_all_button.tooltip_text = "Replaces all matches in file"
 	local replace_box = Gtk.Box { orientation = "HORIZONTAL" }
 	replace_box:add_css_class "linked"
 	replace_box:append(replace_entry)
 	replace_box:append(replace_button)
+	replace_box:append(replace_in_sel_button)
 	replace_box:append(replace_all_button)
 	local search_bar_box = Gtk.Box {
 		orientation = "VERTICAL",
@@ -283,7 +295,7 @@ local editor = newclass(function(self)
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
 	text_view:add_css_class "parchment-editor"
-	text_view:add_css_class "numeric" -- Force monospace numbers regardless of font.
+	text_view:add_css_class "numeric" -- Force numbers to be monospaced.
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
 		hscrollbar_policy = "NEVER",
@@ -310,6 +322,7 @@ local editor = newclass(function(self)
 	end
 	function self.tv.buffer.on_mark_set(iter, mark)
 		replace_button.sensitive = self:match_selected()
+		replace_in_sel_button.sensitive = self:selection_has_match()
 	end
 	local function dosearch()
 		-- Forgo the search if the pattern is too small, because it'd take too long. If the user wants to match a small pattern, they can manually do a search by activating the entry or pressing the next/prev buttons to do so.
@@ -318,6 +331,7 @@ local editor = newclass(function(self)
 			return
 		end
 		matchnum_label.label = self:findall(search_entry.text, not pattern_toggle.active)
+		replace_in_sel_button.sensitive = self:selection_has_match()
 		replace_all_button.sensitive = #self.matches > 0
 	end
 	local function prev()
@@ -330,8 +344,12 @@ local editor = newclass(function(self)
 	end
 	local function repl()
 		if not replace_button.sensitive then return end
-		self:replace(self.text)
+		self:replace(replace_entry.text)
 		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
+	end
+	local function replsel()
+		if not replace_in_sel_button.sensitive then return end
+		self:replace_in_selection(search_entry.text, not pattern_toggle.active, replace_entry.text)
 	end
 	local function replall()
 		self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
@@ -343,8 +361,8 @@ local editor = newclass(function(self)
 	prev_match.on_clicked = prev
 	next_match.on_clicked = next
 	search_entry.on_activate = next
---	replace_entry.on_activate = repl
 	replace_button.on_clicked = repl
+	replace_in_sel_button.on_clicked = replsel
 	replace_all_button.on_clicked = replall
 end)
 
@@ -636,7 +654,7 @@ local function new_window()
 --	window.content = tab_overview
 	window.content = content
 	window.title = app_title
-	window:set_default_size(640, 700)
+	window:set_default_size(640, 680)
 
 	function open_file_button:on_clicked()
 		open_file_dialog(window)
@@ -1024,12 +1042,12 @@ function editor:selecton_wrap(str)
 end
 
 function editor:selection_rect()
-	local bound, ins = self:get_iters()
-	if ins:starts_line() and bound:get_offset() ~= ins:get_offset() then
-		ins:backward_line()
-		bound:order(ins)
+	local first, second = self:get_iters()
+	if second:starts_line() and first:get_offset() ~= second:get_offset() then
+		second:backward_line()
+		first:order(second)
 	end
-	local rect = self.tv:get_cursor_locations(ins)
+	local rect = self.tv:get_cursor_locations(second)
 	rect.x, rect.y = self.tv:buffer_to_window_coords(Gtk.TextWindowType.TEXT, rect.x, rect.y)
 	return rect
 end
@@ -1122,8 +1140,8 @@ function editor:go_to(line)
 	local lines = self.tv.buffer:get_line_count()
 	assert(line >= 1 and line <= lines)
 	self:select_lines(line)
-	local bound = self:get_iters()
-	self:set_iters(bound, bound)
+	local first = self:get_iters()
+	self:set_iters(first, first)
 	self:scroll_to_selection()
 end
 
@@ -1197,17 +1215,29 @@ end
 
 -- Returns true if the currently selected text is on a match.
 function editor:match_selected()
-	local bound, ins = self:get_iters()
-	local bound_offset = bound:get_offset() + 1
-	local ins_offset = ins:get_offset() + 1
+	local first, second = self:get_iters()
+	local first_offset = first:get_offset() + 1
+	local second_offset = second:get_offset() + 1
 	for _, m in ipairs(self.matches) do
-		if bound_offset == m[1] and ins_offset == m[2] then
+		if first_offset == m[1] and second_offset == m[2] then
 			return true
-		elseif bound_offset < m[1] and ins_offset < m[2] then
+		elseif first_offset < m[1] and second_offset < m[2] then
 			return false
 		end
 	end
 	return false
+end
+
+function editor:selection_has_match()
+	local first, second = self:get_iters()
+	local first_offset = first:get_offset() + 1
+	local second_offset = second:get_offset() + 1
+	for _, m in ipairs(self.matches) do
+		if first_offset <= m[1] and second_offset >= m[2] then
+			return true
+		end
+	end
+	return
 end
 
 function editor:next_match(...)
@@ -1231,8 +1261,8 @@ end
 function editor:prev_match(...)
 	self:findall(...)
 	if #self.matches == 0 then return end
-	local start_iter, _ = self:get_iters()
-	local cursor_pos = start_iter:get_offset()
+	local first, _ = self:get_iters()
+	local cursor_pos = first:get_offset()
 	for i = 1, #self.matches do
 		local idx = #self.matches - i + 1
 		local m = self.matches[idx]
@@ -1254,6 +1284,18 @@ function editor:replace(repl)
 	self:selection_replace(repl)
 end
 
+function editor:replace_in_selection(pattern, plain, repl)
+	self:findall(pattern, plain)
+	if not self:selection_has_match() then return end
+	if #pattern == 0 or #self.matches == 0 then return end
+	if plain then
+		pattern = lib.escapepattern(pattern)
+		repl = lib.escaperepl(repl)
+	end
+	local text = self:selection_get()
+	self:selection_replace(text:gsub(pattern, repl))
+end
+
 function editor:replace_all(pattern, plain, repl)
 	if #pattern == 0 then return end
 	self:findall(pattern, plain)
@@ -1270,6 +1312,7 @@ function editor:replace_all(pattern, plain, repl)
 			self:selection_replace(text:gsub(pattern, repl))
 		end
 		i = i - 1
+		if i % 50 == 0 then coroutine.yield(true) end
 	until i == 0
 	self.tv.buffer:end_user_action()
 end
@@ -1277,9 +1320,9 @@ end
 function editor:begin_jumpover()
 	self:scroll_to_selection()
 	self.scroll.kinetic_scrolling = false
-	local _, ins = self:get_iters()
-	local lineno = ins:get_line() + 1
-	local colno = ins:get_line_index() + 1
+	local _, second = self:get_iters()
+	local lineno = second:get_line() + 1
+	local colno = second:get_line_index() + 1
 	local linelabel = Gtk.Label {
 		label = ("Line #%d, Column #%d"):format(lineno, colno),
 		halign = "START",
@@ -1330,7 +1373,7 @@ do -- Initialize custom CSS.
 	local provider = Gtk.CssProvider()
 	provider:load_from_string [[
 		.parchment-editor {
-			font-size: 110%;
+			font-size: 12pt;
 		}
 	]]
 	local display = Gdk.Display.get_default()
