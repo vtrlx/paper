@@ -256,10 +256,14 @@ local editor = newclass(function(self)
 		hexpand = true,
 	}
 	local replace_button = Gtk.Button.new_with_label "Replace"
-	local replace_in_sel_button = Gtk.Button.new_with_label "Selected"
+	replace_button.tooltip_text = "Replaces selected text"
+	replace_button.sensitive = false
+	local replace_in_sel_button = Gtk.Button.new_with_label "Replace in selection"
 	replace_in_sel_button.tooltip_text = "Replace all matches in selection"
-	local replace_all_button = Gtk.Button.new_with_label "All"
+	replace_in_sel_button.visible = false
+	local replace_all_button = Gtk.Button.new_with_label "Replace all"
 	replace_all_button.tooltip_text = "Replaces all matches in file"
+	replace_all_button.sensitive = false
 	local replace_box = Gtk.Box { orientation = "HORIZONTAL" }
 	replace_box:add_css_class "linked"
 	replace_box:append(replace_entry)
@@ -320,9 +324,22 @@ local editor = newclass(function(self)
 	function self.tv.buffer.on_modified_changed()
 		self:update_title()
 	end
-	function self.tv.buffer.on_mark_set(iter, mark)
+	local function refresh_repl_buttons()
+		if self:selection_has_match() and not self:match_selected() then
+			replace_button.visible = false
+			replace_in_sel_button.visible = true
+			replace_all_button.visible = false
+		else
+			replace_button.visible = true
+			replace_in_sel_button.visible = false
+			replace_all_button.visible = true
+		end
 		replace_button.sensitive = self:match_selected()
-		replace_in_sel_button.sensitive = self:selection_has_match()
+		replace_in_sel_button.sensitive = not self:match_selected() and self:selection_has_match()
+		replace_all_button.sensitive = #self.matches > 0
+	end
+	function self.tv.buffer.on_mark_set(iter, mark)
+		refresh_repl_buttons()
 	end
 	local function dosearch()
 		-- Forgo the search if the pattern is too small, because it'd take too long. If the user wants to match a small pattern, they can manually do a search by activating the entry or pressing the next/prev buttons to do so.
@@ -331,29 +348,34 @@ local editor = newclass(function(self)
 			return
 		end
 		matchnum_label.label = self:findall(search_entry.text, not pattern_toggle.active)
-		replace_in_sel_button.sensitive = self:selection_has_match()
-		replace_all_button.sensitive = #self.matches > 0
+		refresh_repl_buttons()
 	end
 	local function prev()
 		matchnum_label.label = self:prev_match(search_entry.text, not pattern_toggle.active)
-		replace_all_button.sensitive = #self.matches > 0
+		refresh_repl_buttons()
 	end
 	local function next()
 		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
-		replace_all_button.sensitive = #self.matches > 0
+		refresh_repl_buttons()
 	end
 	local function repl()
 		if not replace_button.sensitive then return end
 		self:replace(replace_entry.text)
 		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
+		refresh_repl_buttons()
 	end
 	local function replsel()
-		if not replace_in_sel_button.sensitive then return end
 		self:replace_in_selection(search_entry.text, not pattern_toggle.active, replace_entry.text)
+		refresh_repl_buttons()
 	end
 	local function replall()
-		self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
 		replace_all_button.sensitive = false
+		GLib.timeout_add(Glib.PRIORITY_DEFAULT, 5, coroutine.wrap(function()
+			self.tv.sensitive = false
+			self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
+			refresh_repl_buttons()
+			self.tv.sensitive = true
+		end))
 		matchnum_label.label = ""
 	end
 	pattern_toggle.on_clicked = dosearch
@@ -1229,6 +1251,7 @@ function editor:match_selected()
 end
 
 function editor:selection_has_match()
+	if #self.matches == 0 then return false end
 	local first, second = self:get_iters()
 	local first_offset = first:get_offset() + 1
 	local second_offset = second:get_offset() + 1
@@ -1237,7 +1260,7 @@ function editor:selection_has_match()
 			return true
 		end
 	end
-	return
+	return false
 end
 
 function editor:next_match(...)
@@ -1312,7 +1335,6 @@ function editor:replace_all(pattern, plain, repl)
 			self:selection_replace(text:gsub(pattern, repl))
 		end
 		i = i - 1
-		if i % 50 == 0 then coroutine.yield(true) end
 	until i == 0
 	self.tv.buffer:end_user_action()
 end
@@ -1372,7 +1394,7 @@ SECTION: Styles
 do -- Initialize custom CSS.
 	local provider = Gtk.CssProvider()
 	provider:load_from_string [[
-		.parchment-editor {
+		textview.parchment-editor {
 			font-size: 12pt;
 		}
 	]]
