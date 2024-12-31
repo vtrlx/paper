@@ -105,6 +105,21 @@ function lib.escaperepl(str)
 	return str:gsub("%%([0-9])", "%%%%%1")
 end
 
+function lib.fixutfpattern(str)
+	local result = ""
+	for substr in str:gmatch "[^%.]*%.?" do
+		local match = substr:match "%%*%.$"
+		if not match then
+			match = substr
+		elseif #match % 2 == 1 then
+			-- Dot is not escaped.
+			match = match:sub(1, #match - 1) .. utf8.charpattern
+		end
+		result = result .. match
+	end
+	return result
+end
+
 -- Simple class implementation without inheritance.
 local function newclass(init)
 	local c = {}
@@ -343,7 +358,7 @@ local editor = newclass(function(self)
 	end
 	local function dosearch()
 		-- Forgo the search if the pattern is too small, because it'd take too long. If the user wants to match a small pattern, they can manually do a search by activating the entry or pressing the next/prev buttons to do so.
-		if #search_entry.text < 3 then
+		if #search_entry.text < 2 then
 			matchnum_label.label = ""
 			return
 		end
@@ -370,13 +385,16 @@ local editor = newclass(function(self)
 	end
 	local function replall()
 		replace_all_button.sensitive = false
-		GLib.timeout_add(Glib.PRIORITY_DEFAULT, 5, coroutine.wrap(function()
+		matchnum_label.label = ""
+		local cb = coroutine.wrap(function()
 			self.tv.sensitive = false
 			self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
 			refresh_repl_buttons()
 			self.tv.sensitive = true
-		end))
-		matchnum_label.label = ""
+		end)
+		if cb() then
+			GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, cb)
+		end
 	end
 	pattern_toggle.on_clicked = dosearch
 	search_entry.buffer.on_notify.text = dosearch
@@ -680,7 +698,7 @@ local function new_window()
 --	window.content = tab_overview
 	window.content = content
 	window.title = app_title
-	window:set_default_size(640, 680)
+	window:set_default_size(640, 800)
 
 	function open_file_button:on_clicked()
 		open_file_dialog(window)
@@ -1206,6 +1224,9 @@ function editor:findall(pattern, plain)
 	local len = #text
 	local init = 1
 	local per_line = (not plain) and (pattern:match "^^" or pattern:match "$$")
+	if not plain then
+		pattern = lib.fixutfpattern(pattern)
+	end
 	if not per_line then
 		while init <= len do
 			local i, j = text:find(pattern, init, plain)
@@ -1295,11 +1316,11 @@ function editor:prev_match(...)
 	self:findall(...)
 	if #self.matches == 0 then return end
 	local first, _ = self:get_iters()
-	local cursor_pos = first:get_offset()
+	local cursor_pos = first:get_offset() + 1
 	for i = 1, #self.matches do
 		local idx = #self.matches - i + 1
 		local m = self.matches[idx]
-		if cursor_pos > m[2] then
+		if cursor_pos >= m[2] then
 			self:select_range(m[1], m[2])
 			self:scroll_to_selection()
 			return self:update_matches(#self.matches, idx)
@@ -1323,6 +1344,7 @@ function editor:replace_in_selection(pattern, plain, repl)
 	if #pattern == 0 or #self.matches == 0 then return end
 	if plain then
 		pattern = lib.escapepattern(pattern)
+		pattern = lib.fixutfpattern(pattern)
 		repl = lib.escaperepl(repl)
 	end
 	local text = self:selection_get()
@@ -1345,6 +1367,7 @@ function editor:replace_all(pattern, plain, repl)
 			self:selection_replace(text:gsub(pattern, repl))
 		end
 		i = i - 1
+		if i > 1 and i % 50 == 0 then coroutine.yield(true) end
 	until i == 0
 	self.tv.buffer:end_user_action()
 end
