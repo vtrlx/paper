@@ -492,13 +492,17 @@ SECTION: Application menus
 local file_menu = Gio.Menu()
 file_menu:append("Save", "win.save_file")
 file_menu:append("Save As…", "win.save_file_as")
-file_menu:append("Open File Location", "win.open_folder")
+local nav_menu = Gio.Menu()
+nav_menu:append("Open File Location", "win.open_folder")
+nav_menu:append("Find/Replace", "win.search")
+nav_menu:append("Go to Line", "win.goto")
 local app_menu = Gio.Menu()
 app_menu:append("New Window", "win.new_window")
 app_menu:append("Keyboard Shortcuts", "win.shortcuts")
 app_menu:append("About " .. app_title, "win.about")
 local burger_menu = Gio.Menu()
 burger_menu:append_section(nil, file_menu)
+burger_menu:append_section(nil, nav_menu)
 burger_menu:append_section(nil, app_menu)
 
 local function newshortwindow(parent)
@@ -715,6 +719,8 @@ local function new_window()
 		window_title:set_title(title)
 		window_title:set_subtitle(subtitle)
 		window_widgets[window].open_folder_action.enabled = e:has_file()
+		window_widgets[window].search_action.enabled = true
+		window_widgets[window].goto_action.enabled = true
 	end
 	function tab_view:on_page_detached(page)
 		local e = editors_by_view[page.child]
@@ -771,6 +777,8 @@ local function new_window()
 				content.top_bar_style = "FLAT"
 				if window_widgets[window] then
 					window_widgets[window].open_folder_action.enabled = false
+					window_widgets[window].search_action.enabled = false
+					window_widgets[window].goto_action.enabled = false
 				end
 			end
 		end
@@ -860,17 +868,19 @@ local function new_window()
 		save_file_dialog(window, e)
 	end)
 
-	window_new_action(window, "search", function()
+	window_widgets[window].search_action = window_new_action(window, "search", function()
 		local e = get_focused_editor()
 		if not e then return end
 		e:begin_search()
 	end)
+	window_widgets[window].search_action.enabled = false
 
-	window_new_action(window, "goto", function()
+	window_widgets[window].goto_action = window_new_action(window, "goto", function()
 		local e = get_focused_editor()
 		if not e then return end
 		e:begin_jumpover()
 	end)
+	window_widgets[window].goto_action.enabled = false
 
 	window_new_action(window, "new_window", function()
 		new_window()
