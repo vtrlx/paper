@@ -454,7 +454,8 @@ local function open_file_dialog(window)
 	local e = get_focused_editor()
 	local dir = file_dialog_path
 	if e and e:has_file() then
-		dir = e:get_file_dir()
+		local _, newdir, _ = e:get_path_info()
+		dir = newdir
 	end
 	local file_dialog = Gtk.FileDialog {
 		initial_folder = Gio.File.new_for_path(dir),
@@ -482,7 +483,8 @@ end
 local function save_file_dialog(window, e)
 	local dir = file_dialog_path
 	if e:has_file() then
-		dir = e:get_file_dir()
+		local _, newdir, _ = e:get_path_info()
+		dir = newdir
 	end
 	local file_dialog = Gtk.FileDialog {
 		initial_folder = Gio.File.new_for_path(dir),
@@ -763,7 +765,8 @@ local function new_window()
 		self:close_page_finish(page, do_close)
 		if not do_close then
 			local body = "The file %q has unsaved changes."
-			body = body:format(e:get_file_name())
+			local _, _, name = e:get_path_info()
+			body = body:format(name)
 			if not e:has_file() then
 				body = "This file has unsaved changes."
 			end
@@ -786,7 +789,7 @@ local function new_window()
 			dlg:choose(app.active_window)
 		else
 			editors_by_view[page.child] = nil
-			local path = e:get_file_path()
+			local path = e:get_path_info()
 			if path then editors_by_path[path] = nil end
 			if self:get_n_pages() == 0 then
 				window_title:set_title(app_title)
@@ -862,7 +865,8 @@ local function new_window()
 	window_widgets[window].open_folder_action = window_new_action(window, "open_folder", function()
 		local e = get_focused_editor()
 		if not e or not e:has_file() then return end
-		lib.forkexec(("xdg-open %q"):format(e:get_file_dir()))
+		local _, dir = e:get_path_info()
+		lib.forkexec(("xdg-open %q"):format(dir))
 	end)
 	window_widgets[window].open_folder_action.enabled = false
 
@@ -1028,51 +1032,9 @@ function editor:select_last_line()
 	self:scroll_to_selection()
 end
 
-function editor:deselect()
-	local _, second = self:get_iters()
-	self:set_iters(second, second)
-end
-
-function editor:select_all()
-	local head = self.tv.buffer:get_start_iter()
-	local tail = self.tv.buffer:get_end_iter()
-	self:set_iters(head, tail)
-end
-
-function editor:selection_extend()
-	local first, second = self:get_iters()
-	first:set_line_offset(0)
-	if not second:starts_line() then
-		second:forward_line()
-	end
-	self:set_iters(first, second)
-end
-
 function editor:selection_get()
 	local first, second = self:get_iters()
 	return first:get_slice(second)
-end
-
-function editor:selection_delete()
-	self.tv.buffer:delete(self:get_iters())
-end
-
-function editor:selection_prepend(str)
-	assert(type(str) == "string")
-	local first, _ = self:get_iters()
-	self.tv.buffer:insert(first, str, #str)
-	first = self.tv.buffer:get_iter_at_offset(first:get_offset() - utf8.len(str))
-	local _, second = self:get_iters()
-	self:set_iters(first, second)
-end
-
-function editor:selection_append(str)
-	assert(type(str) == "string")
-	local first, second = self:get_iters()
-	local firstoff = first:get_offset()
-	self.tv.buffer:insert(second, str, #str)
-	first = self.tv.buffer:get_iter_at_offset(firstoff)
-	self:set_iters(first, second)
 end
 
 function editor:selection_replace(str)
@@ -1083,12 +1045,6 @@ function editor:selection_replace(str)
 	self.tv.buffer:insert(second, str, #str)
 	first = self.tv.buffer:get_iter_at_offset(offset)
 	self:set_iters(first, second)
-end
-
-function editor:selecton_wrap(str)
-	assert(type(str) == "string")
-	self:selection_prepend(str)
-	self:selection_append(str)
 end
 
 function editor:selection_rect()
@@ -1120,29 +1076,17 @@ function editor:update_title()
 	end
 end
 
-function editor:get_file_dir()
-	if not self.file_dir and self.file_name then return "/" end
-	return self.file_dir
-end
-
-function editor:get_file_name()
-	return self.file_name
+function editor:get_path_info()
+	if not self:has_file() then return end
+	return self.file_dir .. "/" .. self.file_name, self.file_dir, self.file_path
 end
 
 function editor:has_file()
 	return self.file_dir and self.file_name
 end
 
-function editor:get_file_path()
-	if not self.file_dir and self.file_name then
-		return "/" .. self.file_name
-	end
-	if not self.file_dir or not self.file_name then return end
-	return self.file_dir .. "/" .. self.file_name
-end
-
 function editor:set_file_path(path)
-	local oldpath = self:get_file_path()
+	local _, oldpath, _ = self:get_path_info()
 	assert(path and type(path) == "string")
 	assert(not lib.is_dir(path))
 	local abspath = lib.absolute_path(path)
@@ -1164,24 +1108,15 @@ function editor:edit_file(path)
 	end
 	assert(type(path) == "string")
 	self:set_file_path(path)
-	return buffer_read_file(self.tv.buffer, self:get_file_path())
-end
-
-function editor:discard_changes()
-	local path = self:get_file_path()
-	if not path then
-		self.tv.buffer.text = ""
-		self.tv.buffer:set_modified(false)
-	else
-		self.tv.buffer:set_modified(false)
-		self:edit_file(path)
-	end
+	path = self:get_path_info()
+	return buffer_read_file(self.tv.buffer, path)
 end
 
 function editor:save(path)
 	if path then self:set_file_path(path) end
 	assert(self.file_dir and self.file_name)
-	local success = buffer_write_file(self.tv.buffer, self:get_file_path())
+	path = self:get_path_info()
+	local success = buffer_write_file(self.tv.buffer, path)
 	if not success then error(err) end
 	self:update_title()
 end
