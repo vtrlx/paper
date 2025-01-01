@@ -1014,24 +1014,6 @@ function editor:select_range(range_start, range_end)
 	self:set_iters(first, second)
 end
 
-function editor:select_lines(addr1, addr2)
-	assert(type(addr1) == "number")
-	if type(addr2) ~= "number" then addr2 = addr1 end
-	local lines = self.tv.buffer:get_line_count()
-	if addr1 > lines or addr2 > lines then return end
-	local first = self.tv.buffer:get_iter_at_line(addr1 - 1)
-	local second = self.tv.buffer:get_iter_at_line(addr2 - 1)
-	first:order(second)
-	second:forward_line()
-	self:set_iters(first, second)
-end
-
-function editor:select_last_line()
-	local last = self.tv.buffer:get_line_count()
-	self:select_lines(last, last)
-	self:scroll_to_selection()
-end
-
 function editor:selection_get()
 	local first, second = self:get_iters()
 	return first:get_slice(second)
@@ -1123,9 +1105,8 @@ end
 
 function editor:go_to(line)
 	local lines = self.tv.buffer:get_line_count()
-	assert(line >= 1 and line <= lines)
-	self:select_lines(line)
-	local first = self:get_iters()
+	assert(type(line) == "number" and line >= 1 and line <= lines)
+	local first = self.tv.buffer:get_iter_at_line(line - 1)
 	self:set_iters(first, first)
 	self:scroll_to_selection()
 end
@@ -1312,9 +1293,10 @@ function editor:begin_jumpover()
 	self.scroll.kinetic_scrolling = false
 	local _, second = self:get_iters()
 	local lineno = second:get_line() + 1
+	local lines = self.tv.buffer:get_line_count()
 	local colno = second:get_line_index() + 1
 	local linelabel = Gtk.Label {
-		label = ("Line #%d, Column #%d"):format(lineno, colno),
+		label = ("Line #%d/%d, Column #%d"):format(lineno, lines, colno),
 		halign = "START",
 	}
 	local lineentry = Gtk.Entry {
@@ -1332,11 +1314,12 @@ function editor:begin_jumpover()
 		child = box,
 		pointing_to = self:selection_rect(),
 	}
-	function lineentry:on_changed()
-		if self.text:match "^[0-9]+$" or self.text == "$" then
-			self:remove_css_class "error"
+	function lineentry.on_changed()
+		local num = tonumber(lineentry.text)
+		if (num and num <= lines) or lineentry.text == "$" then
+			lineentry:remove_css_class "error"
 		else
-			self:add_css_class "error"
+			lineentry:add_css_class "error"
 		end
 	end
 	function lineentry.on_activate()
