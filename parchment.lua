@@ -313,9 +313,23 @@ local editor = newclass(function(self)
 		layout_manager = Parchment.EditorLayoutManager(),
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
+	search_bar.on_notify["search-mode-enabled"] = function()
+		if not search_bar.search_mode_enabled then
+			local start = text_view.buffer:get_start_iter()
+			local finish = text_view.buffer:get_end_iter()
+			text_view.buffer:remove_all_tags(start, finish)
+		end
+	end
 	text_view:add_css_class "parchment-editor"
 	text_view:add_css_class "numeric" -- Force numbers to be monospaced.
 	text_view.buffer:set_max_undo_levels(0)
+	local matchtag = Gtk.TextTag {
+		name = "match",
+		background = "#f9f06b",
+		background_full_height = true,
+		foreground = "#000000",
+	}
+	text_view.buffer.tag_table:add(matchtag)
 	local scrolled_win = Gtk.ScrolledWindow {
 		hscrollbar_policy = "NEVER",
 		child = text_view,
@@ -719,6 +733,7 @@ local function new_window()
 				page.indicator_icon = nil
 			end
 			if tab_view.selected_page == page then
+				window.title = title
 				window_title:set_title(title)
 				window_title:set_subtitle(subtitle)
 				title_icon.tooltip_text = "Save " .. title
@@ -736,6 +751,7 @@ local function new_window()
 		-- Force set here, because the tab view's selected_page won't be set in time for this call.
 		local title, subtitle = e:get_title()
 		page.title = name
+		window.title = title
 		window_title:set_title(title)
 		window_title:set_subtitle(subtitle)
 		window_widgets[window].open_folder_action.enabled = e:has_file()
@@ -792,6 +808,7 @@ local function new_window()
 			local path = e:get_path_info()
 			if path then editors_by_path[path] = nil end
 			if self:get_n_pages() == 0 then
+				window.title = app_title
 				window_title:set_title(app_title)
 				window_title:set_subtitle ""
 				title_icon.visible = false
@@ -1135,6 +1152,9 @@ end
 
 -- Lua is excellent at processing long strings, so this should be pretty fast.
 function editor:findall(pattern, plain)
+	local start = self.tv.buffer:get_start_iter()
+	local finish = self.tv.buffer:get_end_iter()
+	self.tv.buffer:remove_all_tags(start, finish)
 	local byte_indices = {}
 	local text = self.tv.buffer.text
 	local len = #text
@@ -1174,6 +1194,9 @@ function editor:findall(pattern, plain)
 		ulen2 = utf_total + ulen2
 		utf_total = ulen2 - 1
 		table.insert(self.matches, { ulen1, ulen2 })
+		local first = self.tv.buffer:get_iter_at_offset(ulen1 - 1)
+		local second = self.tv.buffer:get_iter_at_offset(ulen2 - 1)
+		self.tv.buffer:apply_tag_by_name("match", first, second)
 		init = j + 1
 	end
 	if not #self.matches then
