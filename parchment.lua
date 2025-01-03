@@ -200,10 +200,9 @@ local aboutdlg = Adw.AboutDialog {
 	website = "https://www.vlacroix.ca/apps/parchment/",
 }
 
-aboutdlg.comments = [[
-<b>Special Thanks</b>
-• Brage Fuglseth for suggesting the name "Parchment"
-]]
+aboutdlg:add_acknowledgement_section("Application Name", {
+	"Brage Fuglseth https://bragefuglseth.dev",
+})
 
 --[[
 SECTION: Layout management
