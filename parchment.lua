@@ -611,13 +611,14 @@ end
 -- Returns a new application window and its inner tab view.
 local function new_window()
 	local open_file_button = Gtk.Button {
-		label = "Open",
+		icon_name = "document-open-symbolic",
+		tooltip_text = "Open a file",
 	}
-	open_file_button:add_css_class "suggested-action"
 
 	local new_tab_button = Gtk.Button {
 		halign = "START",
 		icon_name = "tab-new-symbolic",
+		tooltip_text = "Create new file",
 	}
 	function new_tab_button:on_clicked()
 		open_file()
@@ -1318,20 +1319,16 @@ function editor:begin_jumpover()
 	}
 	function lineentry.on_changed()
 		local num = tonumber(lineentry.text)
-		if (num and num <= lines) or lineentry.text == "$" then
+		if num and num >= 1 and num <= lines then
 			lineentry:remove_css_class "error"
 		else
 			lineentry:add_css_class "error"
 		end
 	end
 	function lineentry.on_activate()
-		if lineentry.text:match "^[0-9]+$" then
-			self:go_to(tonumber(lineentry.text))
-			popover:popdown()
-		elseif lineentry.text == "$" then
-			local iter = self.tv.buffer:get_end_iter()
-			self:set_iters(iter, iter)
-			self:scroll_to_selection()
+		local num = tonumber(lineentry.text)
+		if num and num >= 1 and num <= lines then
+			self:go_to(num)
 			popover:popdown()
 		end
 	end
