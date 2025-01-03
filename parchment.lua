@@ -1,6 +1,6 @@
 --[[
 parchment.lua — Text editing that feels like parchment.
-Copyright © 2024 Victoria Lacroix
+Copyright © 2025 Victoria Lacroix
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -9,7 +9,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]--
 
--- Allows the libraries to be loaded by Flatpak.
+-- This app runs in Flatpak, which puts Lua libraries outside of the standard paths. These lines tell Lua to look for libraries where Flatpak has put them.
 package.cpath = "/app/lib/lua/5.4/?.so;" .. package.cpath
 package.path = "/app/share/lua/5.4/?.lua;" .. package.path
 
@@ -189,7 +189,7 @@ end
 local aboutdlg = Adw.AboutDialog {
 	application_icon = "text-x-generic",
 	application_name = app_title,
-	copyright = "© 2024 Victoria Lacroix",
+	copyright = "© 2025 Victoria Lacroix",
 	developer_name = "Victoria Lacroix",
 	developers = {
 		"Victoria Lacroix <victoria@vlacroix.ca>",
