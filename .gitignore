@@ -2,7 +2,7 @@
 TODO.md
 
 # Build files
-paper
+parchment
 *.o
 *.bytecode
 .build

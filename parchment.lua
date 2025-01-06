@@ -1,5 +1,5 @@
 --[[
-parchment.lua — Text editing that feels like parchment.
+parchment.lua; Text editing that feels like parchment.
 Copyright © 2025 Victoria Lacroix
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -95,29 +95,6 @@ function lib.file_is_binary(hdl)
 	end
 	hdl:seek "set"
 	return is_binary
-end
-
-function lib.escapepattern(str)
-	return str:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
-end
-
-function lib.escaperepl(str)
-	return str:gsub("%%([0-9])", "%%%%%1")
-end
-
-function lib.fixutfpattern(str)
-	local result = ""
-	for substr in str:gmatch "[^%.]*%.?" do
-		local match = substr:match "%%*%.$"
-		if not match then
-			match = substr
-		elseif #match % 2 == 1 then
-			-- Dot is not escaped.
-			match = match:sub(1, #match - 1) .. utf8.charpattern
-		end
-		result = result .. match
-	end
-	return result
 end
 
 -- Simple class implementation without inheritance.
@@ -251,10 +228,6 @@ local editor = newclass(function(self)
 	sbox:append(searchimg)
 	sbox:append(search_entry)
 	sbox:append(matchnum_label)
-	local pattern_toggle = Gtk.ToggleButton {
-		label = ".*",
-		tooltip_text = "match by pattern",
-	}
 	local prev_match = Gtk.Button.new_from_icon_name "go-up-symbolic"
 	local next_match = Gtk.Button.new_from_icon_name "go-down-symbolic"
 	local search_box = Gtk.Box {
@@ -262,7 +235,6 @@ local editor = newclass(function(self)
 	}
 	search_box:add_css_class "linked"
 	search_box:append(sbox)
-	search_box:append(pattern_toggle)
 	search_box:append(prev_match)
 	search_box:append(next_match)
 	local replace_entry = Gtk.Entry {
@@ -328,9 +300,9 @@ local editor = newclass(function(self)
 	self.matches = {}
 	self.search = {
 		entry = search_entry,
+		replentry = replace_entry,
 		bar = search_bar,
 		matchnum = matchnum_label,
-		pattern = pattern_toggle,
 	}
 	self.tv = text_view
 	self.scroll = scrolled_win
@@ -361,41 +333,40 @@ local editor = newclass(function(self)
 			matchnum_label.label = ""
 			return
 		end
-		matchnum_label.label = self:findall(search_entry.text, not pattern_toggle.active)
+		matchnum_label.label = self:findall(search_entry.text)
 		refresh_repl_buttons()
 	end
 	local function prev()
-		matchnum_label.label = self:prev_match(search_entry.text, not pattern_toggle.active)
+		matchnum_label.label = self:prev_match(search_entry.text)
 		refresh_repl_buttons()
 	end
 	local function next()
-		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
+		matchnum_label.label = self:next_match(search_entry.text)
 		refresh_repl_buttons()
 	end
 	local function repl()
 		if not replace_button.sensitive then return end
 		self:replace(replace_entry.text)
-		matchnum_label.label = self:next_match(search_entry.text, not pattern_toggle.active)
+		matchnum_label.label = self:next_match(search_entry.text)
 		refresh_repl_buttons()
 	end
 	local function replsel()
-		self:replace_in_selection(search_entry.text, not pattern_toggle.active, replace_entry.text)
+		self:replace_in_selection(search_entry.text, replace_entry.text)
 		refresh_repl_buttons()
 	end
 	local function replall()
 		replace_all_button.sensitive = false
 		matchnum_label.label = ""
 		local cb = coroutine.wrap(function()
-			self.tv.sensitive = false
-			self:replace_all(search_entry.text, not pattern_toggle.active, replace_entry.text)
+			self.widget.sensitive = false
+			self:replace_all(search_entry.text, replace_entry.text)
 			refresh_repl_buttons()
-			self.tv.sensitive = true
+			self.widget.sensitive = true
 		end)
 		if cb() then
 			GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, cb)
 		end
 	end
-	pattern_toggle.on_clicked = dosearch
 	search_entry.buffer.on_notify.text = dosearch
 	prev_match.on_clicked = prev
 	next_match.on_clicked = next
@@ -509,7 +480,7 @@ SECTION: Application menus
 ]]--
 
 local file_menu = Gio.Menu()
-file_menu:append("Save", "win.save_file")
+-- file_menu:append("Save", "win.save_file")
 file_menu:append("Save As…", "win.save_file_as")
 local nav_menu = Gio.Menu()
 nav_menu:append("Open File Location", "win.open_folder")
@@ -610,19 +581,19 @@ end
 
 -- Returns a new application window and its inner tab view.
 local function new_window()
-	local open_file_button = Gtk.Button {
-		icon_name = "document-open-symbolic",
-		tooltip_text = "Open a file",
-	}
-
 	local new_tab_button = Gtk.Button {
 		halign = "START",
-		icon_name = "tab-new-symbolic",
-		tooltip_text = "Create new file",
+		icon_name = "document-new-symbolic",
+		tooltip_text = "New file",
 	}
 	function new_tab_button:on_clicked()
 		open_file()
 	end
+
+	local open_file_button = Gtk.Button {
+		icon_name = "document-open-symbolic",
+		tooltip_text = "Open a file",
+	}
 
 	local menu_button = Gtk.MenuButton {
 		direction = "DOWN",
@@ -645,11 +616,11 @@ local function new_window()
 	}
 ]]--
 
-	local title_icon = Gtk.Button {
+	local save_button = Gtk.Button {
 		icon_name = "document-save-symbolic",
 		visible = false,
 	}
-	function title_icon:on_clicked()
+	function save_button:on_clicked()
 		local e = get_focused_editor()
 		if not e then return end
 		if e:has_file() then
@@ -660,20 +631,15 @@ local function new_window()
 	end
 
 	local window_title = Adw.WindowTitle.new(app_title, "")
-	local title_box = Gtk.CenterBox {
-		orientation = "HORIZONTAL",
-		shrink_center_last = true,
-	}
-	title_box.start_widget = title_icon
-	title_box.center_widget = window_title
 
 	local content_header = Adw.HeaderBar {
-		title_widget = title_box,
+		title_widget = window_title,
 		show_start_title_buttons = false,
 		valign = "START",
 	}
-	content_header:pack_start(open_file_button)
 	content_header:pack_start(new_tab_button)
+	content_header:pack_start(open_file_button)
+	content_header:pack_start(save_button)
 	content_header:pack_end(menu_button)
 --	content_header:pack_end(tab_button)
 
@@ -722,8 +688,8 @@ local function new_window()
 				window.title = title
 				window_title:set_title(title)
 				window_title:set_subtitle(subtitle)
-				title_icon.tooltip_text = "Save " .. title
-				title_icon.visible = icon
+				save_button.tooltip_text = "Save " .. title
+				save_button.visible = icon
 				if window_widgets[window] and self:has_file() then
 					window_widgets[window].open_folder_action.enabled = true
 				end
@@ -797,7 +763,7 @@ local function new_window()
 				window.title = app_title
 				window_title:set_title(app_title)
 				window_title:set_subtitle ""
-				title_icon.visible = false
+				save_button.visible = false
 				content.top_bar_style = "FLAT"
 				if window_widgets[window] then
 					window_widgets[window].open_folder_action.enabled = false
@@ -1002,6 +968,21 @@ function editor:set_iters(first, second)
 	self.tv.buffer:select_range(second, first)
 end
 
+function editor:mark_selection()
+	local first, second = self:get_iters()
+	local firstm = self.tv.buffer:create_mark(nil, first, true)
+	local secondm = self.tv.buffer:create_mark(nil, second, false)
+	return firstm, secondm
+end
+
+function editor:recall_selection(firstm, secondm)
+	local first = self.tv.buffer:get_iter_at_mark(firstm)
+	local second = self.tv.buffer:get_iter_at_mark(secondm)
+	self:set_iters(first, second)
+	self.tv.buffer:delete_mark(firstm)
+	self.tv.buffer:delete_mark(secondm)
+end
+
 function editor:scroll_to_selection()
 	self.tv:scroll_to_mark(self:get_bound(), 0.0, false, 0.0, 0.0)
 	self.tv:scroll_to_mark(self:get_insert(), 0.2, false, 0.0, 0.0)
@@ -1116,10 +1097,14 @@ end
 
 function editor:begin_search()
 	-- Replace the search entry if the current selection doesn't match
-	if not self.search.bar.search_mode_enabled and not self:match_selected() then
-		self.search.entry.text = self:selection_get()
+	if not self.search.bar.search_mode_enabled then
+		if self.tv.buffer:get_has_selection() and not self:match_selected() then
+			self.search.entry.text = self:selection_get()
+		else
+			self.search.entry.text = ""
+		end
+		self.search.replentry.text = ""
 	end
-	self.search.pattern.active = false
 	self.search.bar.search_mode_enabled = true
 	self.search.entry:grab_focus()
 end
@@ -1137,31 +1122,16 @@ function editor:update_matches(total, match)
 end
 
 -- Lua is excellent at processing long strings, so this should be pretty fast.
-function editor:findall(pattern, plain)
+function editor:findall(pattern)
 	local byte_indices = {}
 	local text = self.tv.buffer.text
 	local len = #text
 	local init = 1
-	local per_line = (not plain) and (pattern:match "^^" or pattern:match "$$")
-	if not plain then
-		pattern = lib.fixutfpattern(pattern)
-	end
-	if not per_line then
-		while init <= len do
-			local i, j = text:find(pattern, init, plain)
-			if not i or not j then break end
-			table.insert(byte_indices, { i, j })
-			init = j + 1
-		end
-	else
-		local linelen = 0
-		for line in text:gmatch "[^\n]*" do
-			local i, j = line:find(pattern, 1, plain)
-			if i and j then
-				table.insert(byte_indices, { i + linelen, j + linelen })
-			end
-			linelen = linelen + #line + 1
-		end
+	while init <= len do
+		local i, j = text:find(pattern, init, true)
+		if not i or not j then break end
+		table.insert(byte_indices, { i, j })
+		init = j + 1
 	end
 	self.matches = {}
 	local utf_total = 0
@@ -1257,38 +1227,40 @@ function editor:replace(repl)
 	self:selection_replace(repl)
 end
 
-function editor:replace_in_selection(pattern, plain, repl)
-	self:findall(pattern, plain)
-	if not self:selection_has_match() then return end
-	if #pattern == 0 or #self.matches == 0 then return end
-	if plain then
-		pattern = lib.escapepattern(pattern)
-		pattern = lib.fixutfpattern(pattern)
-		repl = lib.escaperepl(repl)
-	end
-	local text = self:selection_get()
-	self:selection_replace(text:gsub(pattern, repl))
-end
-
-function editor:replace_all(pattern, plain, repl)
+function editor:replace_all_in_range(pattern, repl, first, second)
 	if #pattern == 0 then return end
-	self:findall(pattern, plain)
-	local i = #self.matches
+	self:findall(pattern)
+	if #self.matches == 0 then return end
+	local firstm, secondm = self:mark_selection()
+	local firsti = first:get_offset()
+	local secondi = second:get_offset()
 	self.tv.buffer:begin_user_action()
-	-- Matches are always sorted, so by going backwards with replacements it can be guaranteed that matches won't move around. This makes TextMarks wholly unnecessary.
+	local i = #self.matches
+	-- Matches are always sorted, so by going backwards with replacements it can be guaranteed that matches won't move around. This sidesteps the need to apply TextMarks to matches that would get replaced.
 	repeat
 		local m = self.matches[i]
-		self:select_range(m[1], m[2])
-		if plain then
+		if m[1] < firsti then break end
+		if m[2] < secondi then
+			self:select_range(m[1], m[2])
 			self:selection_replace(repl)
-		else
-			local text = self:selection_get()
-			self:selection_replace(text:gsub(pattern, repl))
+			table.remove(self.matches, i)
 		end
+		if i > 100 and i % 50 == 1 then coroutine.yield(true) end
 		i = i - 1
-		if i > 1 and i % 50 == 0 then coroutine.yield(true) end
 	until i == 0
 	self.tv.buffer:end_user_action()
+	self:recall_selection(firstm, secondm)
+end
+
+function editor:replace_in_selection(pattern, repl)
+	local first, second = self:get_iters()
+	self:replace_all_in_range(pattern, repl, first, second)
+end
+
+function editor:replace_all(pattern, repl)
+	local first = self.tv.buffer:get_start_iter()
+	local second = self.tv.buffer:get_end_iter()
+	self:replace_all_in_range(pattern, repl, first, second)
 end
 
 function editor:begin_jumpover()
