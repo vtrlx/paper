@@ -25,6 +25,18 @@
 			"sha256": "9fbf5e28ef86c69858f6d3d34eccc32e911c1a28b4120ff3e84aaa70cfbf1e30"
 		}]
 	}, {
+		"name": "lfs",
+		"buildsystem": "simple",
+		"build-commands": [
+			"make LUA_VERSION=5.4",
+			"make install PREFIX=/app LUA_VERSION=5.4"
+		],
+		"sources": [{
+			"type": "archive",
+			"url": "https://github.com/lunarmodules/luafilesystem/archive/refs/tags/v1_8_0.zip",
+			"sha256": "e3a6beca7a8a90522eed31db6ccdc5ed65a433826500c6862784e27671b9e18a"
+		}]
+	}, {
 		"name": "lgi",
 		"buildsystem": "simple",
 		"build-commands": [

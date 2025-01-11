@@ -15,6 +15,7 @@ package.path = "/app/share/lua/5.4/?.lua;" .. package.path
 SECTION: Support library
 ]]--
 
+local lfs = require "lfs"
 local lib = require "parchmentlib"
 
 function lib.get_home_directory()
@@ -1080,16 +1081,42 @@ function editor:edit_file(path)
 	assert(type(path) == "string")
 	self:set_file_path(path)
 	path = self:get_path_info()
+	local attrs = lfs.attributes(path)
+	self.modtime = attrs.modification
 	return buffer_read_file(self.tv.buffer, path)
 end
 
 function editor:save(path)
+	local oldpath = self:get_path_info()
 	if path then self:set_file_path(path) end
 	assert(self.file_dir and self.file_name)
-	path = self:get_path_info()
-	local success = buffer_write_file(self.tv.buffer, path)
-	if not success then error(err) end
-	self:update_title()
+	local name, _
+	path, _, name = self:get_path_info()
+	local samepath = oldpath == path
+	local attrs = lfs.attributes(path)
+	local modtime = attrs.modification
+	local function dosave()
+		local success = buffer_write_file(self.tv.buffer, path)
+		if not success then error(err) end
+		attrs = lfs.attributes(path)
+		self.modtime = attrs.modification
+		self:update_title()
+	end
+	if samepath and self.modtime and modtime > self.modtime then
+		local body = "The file %q has been modified since it was open. Saving will overwrite those modifications."
+		body = body:format(name)
+		local dlg = Adw.AlertDialog.new("Overwrite file?", body)
+		dlg:add_response("keep", "Don't save")
+		dlg:set_response_appearance("keep", "DEFAULT")
+		dlg:add_response("save", "Overwrite")
+		dlg:set_response_appearance("save", "SUGGESTED")
+		function dlg:on_response(response)
+			if response == "save" then dosave() end
+		end
+		dlg:choose(app.active_window)
+	else
+		dosave()
+	end
 end
 
 function editor:go_to(line)
