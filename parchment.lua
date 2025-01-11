@@ -95,6 +95,16 @@ function lib.file_is_binary(hdl)
 	return is_binary
 end
 
+function lib.escapepattern(str)
+	-- Lua's string.gmatch function does not have a plain option. This takes input strings and returns their pattern equivalent, allowing string.gmatch to work as though it didn't match patterns.
+	return str:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+end
+
+function lib.escaperepl(str)
+	-- In order to prevent replacement strings from being treated like replacement patterns, all % characters simply need to be escaped by doubling them.
+	return str:gsub("%%", "%%%%")
+end
+
 -- Simple class implementation without inheritance.
 local function newclass(init)
 	local c = {}
@@ -276,8 +286,8 @@ local editor = newclass(function(self)
 		bottom_margin = 400,
 		left_margin = 24,
 		right_margin = 24,
-		pixels_above_lines = 3,
-		pixels_below_lines = 3,
+		pixels_above_lines = 4,
+		pixels_below_lines = 4,
 		pixels_inside_wrap = 0,
 		layout_manager = Parchment.EditorLayoutManager(),
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
@@ -321,13 +331,18 @@ local editor = newclass(function(self)
 		replace_button.sensitive = self:match_selected()
 		replace_in_sel_button.sensitive = not self:match_selected() and self:selection_has_match()
 		replace_all_button.sensitive = #self.matches > 0
+		if search_entry.text == replace_entry.text then
+			replace_button.sensitive = false
+			replace_in_sel_button.sensitive = false
+			replace_all_button.sensitive = false
+		end
 	end
 	function self.tv.buffer.on_mark_set(iter, mark)
 		refresh_repl_buttons()
 	end
 	local function dosearch()
-		-- Forgo the search if the pattern is too small, because it'd take too long. If the user wants to match a small pattern, they can manually do a search by activating the entry or pressing the next/prev buttons to do so.
-		if #search_entry.text < 2 then
+		-- Skip searching if nothing is written.
+		if #search_entry.text == 0 then
 			matchnum_label.label = ""
 			return
 		end
@@ -350,20 +365,12 @@ local editor = newclass(function(self)
 	end
 	local function replsel()
 		self:replace_in_selection(search_entry.text, replace_entry.text)
-		refresh_repl_buttons()
+		dosearch()
 	end
 	local function replall()
-		replace_all_button.sensitive = false
 		matchnum_label.label = ""
-		local cb = coroutine.wrap(function()
-			self.widget.sensitive = false
-			self:replace_all(search_entry.text, replace_entry.text)
-			refresh_repl_buttons()
-			self.widget.sensitive = true
-		end)
-		if cb() then
-			GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, cb)
-		end
+		self:replace_all(search_entry.text, replace_entry.text)
+		refresh_repl_buttons()
 	end
 	search_entry.buffer.on_notify.text = dosearch
 	prev_match.on_clicked = prev
@@ -664,7 +671,7 @@ local function new_window()
 --	window.content = tab_overview
 	window.content = content
 	window.title = app_title
-	window:set_default_size(640, 800)
+	window:set_default_size(640, 720)
 
 	function open_file_button:on_clicked()
 		open_file_dialog(window)
@@ -1042,7 +1049,7 @@ end
 
 function editor:get_path_info()
 	if not self:has_file() then return end
-	return self.file_dir .. "/" .. self.file_name, self.file_dir, self.file_path
+	return self.file_dir .. "/" .. self.file_name, self.file_dir, self.file_name
 end
 
 function editor:has_file()
@@ -1225,40 +1232,23 @@ function editor:replace(repl)
 	self:selection_replace(repl)
 end
 
-function editor:replace_all_in_range(pattern, repl, first, second)
-	if #pattern == 0 then return end
-	self:findall(pattern)
-	if #self.matches == 0 then return end
-	local firstm, secondm = self:mark_selection()
-	local firsti = first:get_offset()
-	local secondi = second:get_offset()
-	self.tv.buffer:begin_user_action()
-	local i = #self.matches
-	-- Matches are always sorted, so by going backwards with replacements it can be guaranteed that matches won't move around. This sidesteps the need to apply TextMarks to matches that would get replaced.
-	repeat
-		local m = self.matches[i]
-		if m[1] < firsti then break end
-		if m[2] < secondi then
-			self:select_range(m[1], m[2])
-			self:selection_replace(repl)
-			table.remove(self.matches, i)
-		end
-		if i > 100 and i % 50 == 1 then coroutine.yield(true) end
-		i = i - 1
-	until i == 0
-	self.tv.buffer:end_user_action()
-	self:recall_selection(firstm, secondm)
-end
-
 function editor:replace_in_selection(pattern, repl)
-	local first, second = self:get_iters()
-	self:replace_all_in_range(pattern, repl, first, second)
+	if #pattern == 0 then return end
+	if not self:selection_has_match() then return end
+	pattern = lib.escapepattern(pattern)
+	repl = lib.escaperepl(repl)
+	print(pattern, repl)
+	local text = self:selection_get()
+	self:selection_replace(text:gsub(pattern,repl))
 end
 
 function editor:replace_all(pattern, repl)
-	local first = self.tv.buffer:get_start_iter()
-	local second = self.tv.buffer:get_end_iter()
-	self:replace_all_in_range(pattern, repl, first, second)
+	if #pattern == 0 then return end
+	pattern = lib.escapepattern(pattern)
+	repl = lib.escaperepl(repl)
+	print(pattern, repl)
+	local text = self.tv.buffer.text
+	self.tv.buffer.text = text:gsub(pattern, repl)
 end
 
 function editor:begin_jumpover()
