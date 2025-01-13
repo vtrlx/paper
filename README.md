@@ -1,3 +1,5 @@
+![parchment screenshot](parchment.png)
+
 # Parchment
 
 Simply write text.
@@ -5,7 +7,7 @@ Simply write text.
 ## Features
 
 -	write and edit text files
--	search and replace in current file
+-	search and replace
 -	jump to numbered line
 -	open current file's folder
 
