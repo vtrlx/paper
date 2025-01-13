@@ -189,6 +189,9 @@ local aboutdlg = Adw.AboutDialog {
 aboutdlg:add_acknowledgement_section("Application Name", {
 	"Brage Fuglseth https://bragefuglseth.dev",
 })
+aboutdlg:add_acknowledgement_section("3rd Party Libraries", {
+	"LuaFileSystem https://lunarmodules.github.io/luafilesystem/index.html",
+})
 
 --[[
 SECTION: Layout management
