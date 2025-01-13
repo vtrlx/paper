@@ -1096,8 +1096,11 @@ function editor:save(path)
 	local name, _
 	path, _, name = self:get_path_info()
 	local samepath = oldpath == path
-	local attrs = lfs.attributes(path)
-	local modtime = attrs.modification
+	local attrs, modtime
+	if lib.file_exists(path) then
+		attrs = lfs.attributes(path)
+		modtime = attrs.modification
+	end
 	local function dosave()
 		local success = buffer_write_file(self.tv.buffer, path)
 		if not success then error(err) end
@@ -1105,7 +1108,7 @@ function editor:save(path)
 		self.modtime = attrs.modification
 		self:update_title()
 	end
-	if samepath and self.modtime and modtime > self.modtime then
+	if samepath and self.modtime and modtime and modtime > self.modtime then
 		local body = "The file %q has been modified since it was open. Saving will overwrite those modifications."
 		body = body:format(name)
 		local dlg = Adw.AlertDialog.new("Overwrite file?", body)
