@@ -1109,7 +1109,7 @@ function editor:save(path)
 		self:update_title()
 	end
 	if samepath and self.modtime and modtime and modtime > self.modtime then
-		local body = "The file %q has been modified since it was open. Saving will overwrite those modifications."
+		local body = "The file %q has been modified by another application since it was opened. Saving will overwrite those modifications."
 		body = body:format(name)
 		local dlg = Adw.AlertDialog.new("Overwrite file?", body)
 		dlg:add_response("keep", "Don't save")
