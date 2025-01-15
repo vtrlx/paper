@@ -1061,14 +1061,12 @@ function editor:has_file()
 end
 
 function editor:set_file_path(path)
-	local _, oldpath, _ = self:get_path_info()
+	local oldpath = self:get_path_info()
 	assert(path and type(path) == "string")
 	assert(not lib.is_dir(path))
 	local abspath = lib.absolute_path(path)
 	if oldpath == abspath then return end
-	if editors_by_path[abspath] then
-		return
-	end
+	if editors_by_path[abspath] then return end
 	if oldpath then editors_by_path[oldpath] = nil end
 	local dir, name = lib.dir_and_file(path)
 	assert(lib.is_dir(dir))
