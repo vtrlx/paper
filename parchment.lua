@@ -172,27 +172,6 @@ local function error(...)
 	lerror(...)
 end
 
-local aboutdlg = Adw.AboutDialog {
-	application_icon = "text-x-generic",
-	application_name = app_title,
-	copyright = "© 2025 Victoria Lacroix",
-	developer_name = "Victoria Lacroix",
-	developers = {
-		"Victoria Lacroix <victoria@vlacroix.ca>",
-	},
-	issue_url = "https://github.com/vtrlx/parchment/issues",
-	license_type = "GPL_3_0",
-	version = lib.get_app_ver(),
-	website = "https://www.vlacroix.ca/apps/parchment/",
-}
-
-aboutdlg:add_acknowledgement_section("Application Name", {
-	"Brage Fuglseth https://bragefuglseth.dev",
-})
-aboutdlg:add_acknowledgement_section("3rd Party Libraries", {
-	"LuaFileSystem https://lunarmodules.github.io/luafilesystem/index.html",
-})
-
 --[[
 SECTION: Layout management
 GTK widgets do not provide signals for when they've resized. Instead, one is supposed to use a Layout Manager to handle this. Because the Layout Manager needs to be of a specific class, this will subclass it.
@@ -576,6 +555,30 @@ local function newshortwindow(parent)
 	return shortcutwin
 end
 
+local function about(parent)
+	local aboutdlg = Adw.AboutDialog {
+		application_icon = "text-x-generic",
+		application_name = app_title,
+		copyright = "© 2025 Victoria Lacroix",
+		developer_name = "Victoria Lacroix",
+		issue_url = "https://github.com/vtrlx/parchment/issues/new",
+		license_type = "GPL_3_0",
+		version = lib.get_app_ver(),
+		website = "https://www.vlacroix.ca/apps/parchment/",
+	}
+
+	aboutdlg:add_link("Contact the Developer", "mailto:victoria@vlacroix.ca?subject=Parchment App")
+
+	aboutdlg:add_acknowledgement_section("Application Name", {
+		"Brage Fuglseth https://bragefuglseth.dev",
+	})
+	aboutdlg:add_acknowledgement_section("3rd Party Libraries", {
+		"LuaFileSystem https://lunarmodules.github.io/luafilesystem/index.html",
+	})
+
+	aboutdlg:present(parent)
+end
+
 --[[
 SECTION: Main application window
 ]]--
@@ -892,7 +895,7 @@ local function new_window()
 	end)
 
 	window_new_action(window, "about", function()
-		aboutdlg:present(window)
+		about(window)
 	end)
 
 	if is_devel then window:add_css_class "devel" end
