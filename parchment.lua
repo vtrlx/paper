@@ -187,6 +187,8 @@ function Parchment.EditorLayoutManager:do_allocate(widget, width, height, baseli
 	-- In case of the margin space being an odd number, the extra pixel gets assigned to the right side.
 	widget.left_margin = math.floor(totalmargin)
 	widget.right_margin = math.ceil(totalmargin)
+	-- Allow some overscroll at the bottom of the file, but never enough such that all text can be scrolled out of view.
+	widget.bottom_margin = math.floor(height * 0.6)
 	Gtk.TextView.do_size_allocate(widget, width, height, baseline)
 end
 
