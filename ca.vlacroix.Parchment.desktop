@@ -10,5 +10,5 @@ Type=Application
 Exec=parchment %U
 MimeType=text/*;
 Terminal=false
-Icon=text-x-generic
+Icon=ca.vlacroix.Parchment
 StartupNotify=false

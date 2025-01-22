@@ -2,14 +2,6 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:xlink="http://www.w3.org/1999/xlink"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:export-ydpi="96"
    inkscape:export-xdpi="96"
    inkscape:export-filename="Template.png"
@@ -17,12 +9,20 @@
    height="152"
    id="svg11300"
    sodipodi:version="0.32"
-   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
-   sodipodi:docname="template.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   sodipodi:docname="ca.vlacroix.Parchment.Source.svg"
    inkscape:output_extension="org.inkscape.output.svg.inkscape"
    version="1.0"
    style="display:inline;enable-background:new"
-   viewBox="0 0 192 152">
+   viewBox="0 0 192 152"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <title
      id="title4162">Adwaita Icon Template</title>
   <defs
@@ -590,18 +590,18 @@
      borderopacity="0.25490196"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.8284271"
-     inkscape:cx="-16.018274"
-     inkscape:cy="11.797527"
-     inkscape:current-layer="layer3"
+     inkscape:zoom="17.536296"
+     inkscape:cx="154.16597"
+     inkscape:cy="25.661063"
+     inkscape:current-layer="layer9"
      showgrid="false"
      inkscape:grid-bbox="true"
      inkscape:document-units="px"
      inkscape:showpageshadow="false"
      inkscape:window-width="1920"
-     inkscape:window-height="1016"
+     inkscape:window-height="1011"
      inkscape:window-x="0"
-     inkscape:window-y="27"
+     inkscape:window-y="0"
      width="400px"
      height="300px"
      inkscape:snap-nodes="true"
@@ -629,7 +629,8 @@
      inkscape:snap-midpoints="true"
      inkscape:snap-smooth-nodes="true"
      inkscape:snap-text-baseline="true"
-     borderlayer="true">
+     borderlayer="true"
+     inkscape:deskcolor="#d1d1d1">
     <inkscape:grid
        type="xygrid"
        id="grid5883"
@@ -639,7 +640,8 @@
        visible="true"
        empspacing="4"
        originx="8"
-       originy="8" />
+       originy="8"
+       units="px" />
     <sodipodi:guide
        position="72,16"
        orientation="0,1"
@@ -708,7 +710,8 @@
        empopacity="0.08627451"
        dotted="true"
        originx="8"
-       originy="8" />
+       originy="8"
+       units="px" />
     <sodipodi:guide
        position="32,72"
        orientation="1,0"
@@ -1060,12 +1063,12 @@
          style="display:inline;overflow:visible;visibility:visible;fill:#f0f0f0;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.5;marker:none;enable-background:accumulate" />
       <text
          xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4px;line-height:125%;font-family:Cantarell;-inkscape-font-specification:'Cantarell, Bold';text-align:start;writing-mode:lr-tb;text-anchor:start;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.33264872;enable-background:new"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4px;line-height:125%;font-family:Cantarell;-inkscape-font-specification:'Cantarell, Bold';text-align:start;writing-mode:lr-tb;text-anchor:start;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.332649;enable-background:new"
          x="0"
          y="167"
          id="text863"
          inkscape:label="icon-name"><tspan
-           style="font-size:4px;stroke-width:0.33264872"
+           style="font-size:4px;stroke-width:0.332649"
            sodipodi:role="line"
            id="tspan861"
            x="0"
@@ -1075,13 +1078,13 @@
          id="text867"
          y="167"
          x="160"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4px;line-height:125%;font-family:Cantarell;-inkscape-font-specification:'Cantarell, Bold';text-align:start;writing-mode:lr-tb;text-anchor:start;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.33264872;enable-background:new"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:4px;line-height:125%;font-family:Cantarell;-inkscape-font-specification:'Cantarell, Bold';text-align:start;writing-mode:lr-tb;text-anchor:start;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.332649;enable-background:new"
          xml:space="preserve"><tspan
            y="167"
            x="160"
            id="tspan865"
            sodipodi:role="line"
-           style="font-size:4px;stroke-width:0.33264872">Symbolic</tspan></text>
+           style="font-size:4px;stroke-width:0.332649">Symbolic</tspan></text>
       <g
          id="g1318"
          transform="translate(-502.58934,-158.75232)">
@@ -2839,6 +2842,115 @@
              rx="1"
              ry="1.0000002" />
         </g>
+      </g>
+      <g
+         style="display:inline;enable-background:new"
+         id="g1138-6"
+         transform="translate(367.9997,-1.0849138e-4)">
+        <path
+           d="m -339.9997,292.00011 c -4.432,0 -8,-3.70073 -8,-8.29687 v -95.40625 c 0,-4.59615 3.568,-8.29688 8,-8.29688 h 72 c 4.432,0 8,3.70073 8,8.29688 v 79.70312 l -24,24 z"
+           style="display:inline;opacity:1;vector-effect:none;fill:#ffffea;stroke-width:0.254587;marker:none;marker-start:none;marker-mid:none;marker-end:none;enable-background:new"
+           id="path6" />
+        <path
+           d="m -259.9997,268.00011 -24,24 v -16 c 0,-4.432 3.568,-8 8,-8 z"
+           style="display:inline;fill:#efefca;stroke-width:0.422001;stroke-linecap:round;enable-background:new"
+           id="path5" />
+        <rect
+           style="fill:#efefca;fill-opacity:1;stroke-width:0.298158;stroke-linecap:round"
+           id="rect6"
+           width="64"
+           height="6"
+           x="-335.99969"
+           y="-198.00011"
+           transform="scale(1,-1)" />
+        <rect
+           style="display:inline;fill:#efefca;fill-opacity:1;stroke-width:0.298158;stroke-linecap:round;enable-background:new"
+           id="rect6-1"
+           width="64"
+           height="6"
+           x="-335.99969"
+           y="-214.00011"
+           transform="scale(1,-1)" />
+        <rect
+           style="display:inline;fill:#efefca;fill-opacity:1;stroke-width:0.298158;stroke-linecap:round;enable-background:new"
+           id="rect6-1-8"
+           width="64"
+           height="6"
+           x="-335.99969"
+           y="-230.00011"
+           transform="scale(1,-1)" />
+        <rect
+           style="display:inline;fill:#efefca;fill-opacity:1;stroke-width:0.298158;stroke-linecap:round;enable-background:new"
+           id="rect6-1-8-7"
+           width="64"
+           height="6"
+           x="-335.99997"
+           y="-246.00011"
+           transform="scale(1,-1)" />
+        <rect
+           style="display:inline;fill:#efefca;fill-opacity:1;stroke-width:0.298158;stroke-linecap:round;enable-background:new"
+           id="rect6-1-8-7-9"
+           width="64"
+           height="6"
+           x="-335.99982"
+           y="-262.00012"
+           transform="scale(1,-1)" />
+        <rect
+           style="display:inline;fill:#efefca;fill-opacity:1;stroke-width:0.235714;stroke-linecap:round;enable-background:new"
+           id="rect6-1-8-7-9-2-0"
+           width="40"
+           height="6"
+           x="-335.99982"
+           y="-278.00012"
+           transform="scale(1,-1)" />
+      </g>
+      <g
+         id="g3">
+        <path
+           d="m 163,173 c -0.554,0 -1,0.446 -1,1 v 12 c 0,0.554 0.446,1 1,1 h 8 c -0.554,0 -1,-0.446 -1,-1 v -1 h -6 v -10 h 8 v 8 h 1 c 0.554,0 1,0.446 1,1 v -10 c 0,-0.554 -0.446,-1 -1,-1 z"
+           style="display:inline;stroke-width:0.211;stroke-linecap:round;enable-background:new"
+           id="path12" />
+        <path
+           d="m 174,184 c 0,-0.554 -0.446,-1 -1,-1 h -1 v 2 h -2 v 1 c 0,0.554 0.446,1 1,1 z"
+           style="display:inline;stroke-width:0.211;stroke-linecap:round;enable-background:new"
+           id="path14" />
+        <path
+           d="m 170,185 h 2 v -2 h -1 c -0.554,0 -1,0.446 -1,1 z"
+           style="display:inline;stroke-width:0.211;stroke-linecap:round;enable-background:new"
+           id="path13" />
+        <rect
+           style="display:inline;enable-background:new;fill:#000000;fill-opacity:1;stroke-width:0.197042;stroke-linecap:round"
+           id="rect3"
+           width="6"
+           height="1"
+           x="-202.99969"
+           y="176.00011"
+           transform="translate(367.9997,-1.1e-4)" />
+        <rect
+           style="display:inline;enable-background:new;fill:#000000;fill-opacity:1;stroke-width:0.197042;stroke-linecap:round"
+           id="rect3-3"
+           width="6"
+           height="1"
+           x="-202.99969"
+           y="178.00011"
+           transform="translate(367.9997,-1.1e-4)" />
+        <rect
+           style="display:inline;enable-background:new;fill:#000000;fill-opacity:1;stroke-width:0.197042;stroke-linecap:round"
+           id="rect3-3-6"
+           width="6"
+           height="1"
+           x="-202.99969"
+           y="180.00011"
+           transform="translate(367.9997,-1.1e-4)" />
+        <rect
+           style="display:inline;enable-background:new;fill:#000000;fill-opacity:1;stroke-width:0.160884;stroke-linecap:round"
+           id="rect3-3-6-7"
+           width="4"
+           height="1"
+           x="-202.99969"
+           y="182.00011"
+           transform="translate(367.9997,-1.1e-4)"
+           inkscape:label="rect3-3-6-7" />
       </g>
     </g>
     <g
