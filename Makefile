@@ -6,10 +6,10 @@ OBJS = parchment_bytecode.o
 LIBS = -llua -ldl -lm
 CFLAGS = $(LIBS) -Wl,-E
 
-APPID = ca.vlacroix.Parchment
+APPID = ca.vtrlx.Parchment
 ifdef DEVEL
 CFLAGS += -DDEVEL
-APPID = ca.vlacroix.Parchment.Devel
+APPID = ca.vtrlx.Parchment.Devel
 endif
 
 DESKTOP_FILE = $(APPID).desktop

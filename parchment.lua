@@ -197,8 +197,7 @@ SECTION: Text editor constructor
 ]]--
 
 -- Holds the data for open files.
-local editors_by_view = {}
-local editors_by_path = {}
+local editors = {}
 local window_widgets = {}
 
 local editor = newclass(function(self)
@@ -278,7 +277,7 @@ local editor = newclass(function(self)
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
 	text_view:add_css_class "parchment-editor"
-	text_view:add_css_class "numeric" -- Force numbers to be monospaced.
+	text_view:add_css_class "numeric"
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
 		hscrollbar_policy = "NEVER",
@@ -372,7 +371,7 @@ local function open_file(path)
 	assert(tab_view)
 	if type(path) == "string" then
 		path = lib.absolute_path(path)
-		local e = editors_by_path[path]
+		local e = editors[path]
 		if e then
 			e:grab_focus()
 			return
@@ -384,8 +383,8 @@ local function open_file(path)
 		local iter = e.tv.buffer:get_start_iter()
 		e.tv.buffer:select_range(iter, iter)
 	end
-	editors_by_view[e.widget] = e
-	if path then editors_by_path[path] = e end
+	editors[e.widget] = e
+	if path then editors[path] = e end
 	local page = tab_view:add_page(e.widget)
 	tab_view:set_selected_page(page)
 end
@@ -396,7 +395,7 @@ local function get_focused_editor()
 	assert(tab_view)
 	local page = tab_view.selected_page
 	if not page then return nil end
-	return editors_by_view[page.child]
+	return editors[page.child]
 end
 
 --[[
@@ -470,7 +469,6 @@ SECTION: Application menus
 ]]--
 
 local file_menu = Gio.Menu()
--- file_menu:append("Save", "win.save_file")
 file_menu:append("Save As…", "win.save_file_as")
 local nav_menu = Gio.Menu()
 nav_menu:append("Open File Location", "win.open_folder")
@@ -559,17 +557,17 @@ end
 
 local function about(parent)
 	local aboutdlg = Adw.AboutDialog {
-		application_icon = "text-x-generic",
+		application_icon = app_id,
 		application_name = app_title,
 		copyright = "© 2025 Victoria Lacroix",
 		developer_name = "Victoria Lacroix",
 		issue_url = "https://github.com/vtrlx/parchment/issues/new",
 		license_type = "GPL_3_0",
 		version = lib.get_app_ver(),
-		website = "https://www.vlacroix.ca/apps/parchment/",
+		website = "https://www.vtrlx.ca/apps/parchment/",
 	}
 
-	aboutdlg:add_link("Contact the Developer", "mailto:victoria@vlacroix.ca?subject=Parchment App")
+	aboutdlg:add_link("Contact the Developer", "mailto:victoria@vtrlx.ca?subject=Parchment App")
 
 	aboutdlg:add_acknowledgement_section("Application Name", {
 		"Brage Fuglseth https://bragefuglseth.dev",
@@ -687,7 +685,7 @@ local function new_window()
 	end
 
 	function tab_view:on_page_attached(page)
-		local e = editors_by_view[page.child]
+		local e = editors[page.child]
 		if not e then return end
 		content.top_bar_style = "RAISED_BORDER"
 		function e:set_title(title, subtitle, icon)
@@ -725,20 +723,20 @@ local function new_window()
 		window_widgets[window].goto_action.enabled = true
 	end
 	function tab_view:on_page_detached(page)
-		local e = editors_by_view[page.child]
+		local e = editors[page.child]
 		if not e then return end
 		-- This will be reset once the page is reattached.
 		function e:set_title() end
 	end
 	function tab_view:on_notify(spec)
 		if spec.name == "selected-page" and self.selected_page then
-			local e = editors_by_view[self.selected_page.child]
+			local e = editors[self.selected_page.child]
 			e:update_title()
 			e.tv:grab_focus()
 		end
 	end
 	function tab_view:on_close_page(page)
-		local e = editors_by_view[page.child]
+		local e = editors[page.child]
 		local do_close = true
 		local reason
 		if type(e.can_close) == "function" then
@@ -770,9 +768,9 @@ local function new_window()
 			end
 			dlg:choose(app.active_window)
 		else
-			editors_by_view[page.child] = nil
+			editors[page.child] = nil
 			local path = e:get_path_info()
-			if path then editors_by_path[path] = nil end
+			if path then editors[path] = nil end
 			if self:get_n_pages() == 0 then
 				window.title = app_title
 				window_title:set_title(app_title)
@@ -798,9 +796,14 @@ local function new_window()
 		local unsaved = {}
 		for i = 1, n_pages do
 			local page = tab_view:get_nth_page(n_pages - i)
-			local e = editors_by_view[page.child]
+			local e = editors[page.child]
 			if not e:can_close() then
 				table.insert(unsaved, e)
+			end
+		end
+		local function discard()
+			for _, e in ipairs(unsaved) do
+				e.tv.buffer:set_modified(false)
 			end
 		end
 		if #unsaved > 0 then
@@ -810,10 +813,7 @@ local function new_window()
 			dlg:add_response("discard", "Discard all changes")
 			dlg:set_response_appearance("discard", "DESTRUCTIVE")
 			function dlg:on_response(response)
-				if response == "discard" then
-					for _, e in ipairs(unsaved) do e.tv.buffer:set_modified(false) end
-					window:close()
-				end
+				if response == "discard" then discard() end
 			end
 			dlg:choose(self)
 			return true
@@ -939,6 +939,18 @@ local function buffer_read_file(buffer, file_path)
 		-- Remove trailing newlines, so the last line of the file is the last line of the buffer.
 		buffer.text = (buffer.text:match ".*[^\n]") or ""
 	end
+	-- utf8.len() returns fail on an invalid UTF-8 sequence.
+	local length = utf8.len(buffer.text)
+	if length == fail then
+		local window = app.active_window
+		if not window then return fail end
+		local msg = "The encoding of %q is not supported, so it can't be opened."
+		msg = msg:format(lib.encode_path(name))
+		local dlg = Adw.AlertDialog.new("Invalid File Encoding", msg)
+		dlg:add_response("cancel", "Continue without opening")
+		dlg:choose(window)
+		return fail
+	end
 	buffer:set_modified(false)
 	buffer:end_irreversible_action()
 	return true
@@ -980,21 +992,6 @@ function editor:set_iters(first, second)
 	first:order(second)
 	-- Yes, this is how TextBuffer:select_range() works.
 	self.tv.buffer:select_range(second, first)
-end
-
-function editor:mark_selection()
-	local first, second = self:get_iters()
-	local firstm = self.tv.buffer:create_mark(nil, first, true)
-	local secondm = self.tv.buffer:create_mark(nil, second, false)
-	return firstm, secondm
-end
-
-function editor:recall_selection(firstm, secondm)
-	local first = self.tv.buffer:get_iter_at_mark(firstm)
-	local second = self.tv.buffer:get_iter_at_mark(secondm)
-	self:set_iters(first, second)
-	self.tv.buffer:delete_mark(firstm)
-	self.tv.buffer:delete_mark(secondm)
 end
 
 function editor:scroll_to_selection()
@@ -1071,12 +1068,12 @@ function editor:set_file_path(path)
 	assert(not lib.is_dir(path))
 	local abspath = lib.absolute_path(path)
 	if oldpath == abspath then return end
-	if editors_by_path[abspath] then return end
-	if oldpath then editors_by_path[oldpath] = nil end
+	if editors[abspath] then return end
+	if oldpath then editors[oldpath] = nil end
 	local dir, name = lib.dir_and_file(path)
 	assert(lib.is_dir(dir))
 	self.file_dir = dir; self.file_name = name
-	editors_by_path[abspath] = self
+	editors[abspath] = self
 	self:update_title()
 end
 
@@ -1112,8 +1109,8 @@ function editor:save(path)
 		self:update_title()
 	end
 	if samepath and self.modtime and modtime and modtime > self.modtime then
-		local body = "The file %q has been modified by another application since it was opened. Saving will overwrite those modifications."
-		body = body:format(name)
+		local bodyfmt = "The file %q has been modified by another application since it was opened. Saving will overwrite those modifications."
+		local body = bodyfmt:format(name)
 		local dlg = Adw.AlertDialog.new("Overwrite file?", body)
 		dlg:add_response("keep", "Don't save")
 		dlg:set_response_appearance("keep", "DEFAULT")
@@ -1162,7 +1159,7 @@ function editor:update_matches(total, match)
 	end
 end
 
--- Lua is excellent at processing long strings, so this should be pretty fast.
+-- Lua is excellent at processing long strings, and in my experience this implementation is fast enough for most use cases.
 function editor:findall(pattern)
 	local byte_indices = {}
 	local text = self.tv.buffer.text
@@ -1294,8 +1291,9 @@ function editor:begin_jumpover()
 	local lineno = second:get_line() + 1
 	local lines = self.tv.buffer:get_line_count()
 	local colno = second:get_line_index() + 1
+	local labelfmt = "Line #%d/%d, Column #%d"
 	local linelabel = Gtk.Label {
-		label = ("Line #%d/%d, Column #%d"):format(lineno, lines, colno),
+		label = labelfmt:format(lineno, lines, colno),
 		halign = "START",
 	}
 	local lineentry = Gtk.Entry {

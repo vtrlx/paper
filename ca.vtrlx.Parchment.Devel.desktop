@@ -1,14 +1,14 @@
 [Desktop Entry]
 Categories=GNOME;GTK;Utility;TextEditor;
-Name=Parchment
-Name[en]=Parchment
+Name=Parchment Nightly
+Name[en]=Parchment Nightly
 Keywords=write;edit;code;notepad;
 Keywords[en]=write;edit;code;notepad;
-Comment=Featureless Text Editor
-Comment[en]=Featureless Text Editor
+Comment=Featureless Text Editor (development version)
+Comment[en]=Featureless Text Editor (development version)
 Type=Application
 Exec=parchment %U
 MimeType=text/*;
 Terminal=false
-Icon=ca.vlacroix.Parchment
+Icon=ca.vtrlx.Parchment.Devel
 StartupNotify=false

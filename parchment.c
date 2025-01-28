@@ -34,9 +34,9 @@ static int
 get_app_id_lua(lua_State *L)
 {
 #ifdef DEVEL
-	lua_pushstring(L, "ca.vlacroix.Parchment.Devel");
+	lua_pushstring(L, "ca.vtrlx.Parchment.Devel");
 #else
-	lua_pushstring(L, "ca.vlacroix.Parchment");
+	lua_pushstring(L, "ca.vtrlx.Parchment");
 #endif
 	return 1;
 }
