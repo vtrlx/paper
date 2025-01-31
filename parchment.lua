@@ -667,6 +667,7 @@ local function new_window()
 	content:add_top_bar(content_header)
 	content:add_top_bar(tab_bar)
 
+	-- This is disabled as it is currently broken by Gtk.TextView causing resize events during its snapshot phase, which when used as a child of Adw.TabOverview leads to the entire tab contents visually freezing until switching to a new tab. Worse still, to fix this requires a breaking change in Gtk and Gtk.SourceView, so the fix must be coordinated downstream with distros.
 --[[
 	local tab_overview = Adw.TabOverview {
 		child = content,
@@ -679,6 +680,8 @@ local function new_window()
 	window.content = content
 	window.title = app_title
 	window:set_default_size(640, 720)
+	window.width_request = 480
+	window.height_request = 480
 
 	function open_file_button:on_clicked()
 		open_file_dialog(window)
@@ -1343,7 +1346,7 @@ do -- Initialize custom CSS.
 		}
 	]]
 	local display = Gdk.Display.get_default()
-	Gtk.StyleContext.add_provider_for_display(display, provider, 1)
+	-- Gtk.StyleContext.add_provider_for_display(display, provider, 1)
 end
 
 --[[
