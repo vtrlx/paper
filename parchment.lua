@@ -276,7 +276,6 @@ local editor = newclass(function(self)
 		layout_manager = Parchment.EditorLayoutManager(),
 		wrap_mode = Gtk.WrapMode.WORD_CHAR,
 	}
-	text_view:add_css_class "parchment-editor"
 	text_view:add_css_class "numeric"
 	text_view.buffer:set_max_undo_levels(0)
 	local scrolled_win = Gtk.ScrolledWindow {
@@ -1332,21 +1331,6 @@ function editor:begin_jumpover()
 	popover:set_parent(self.tv)
 	popover:popup()
 	self.scroll.kinetic_scrolling = true
-end
-
---[[
-SECTION: Styles
-]]--
-
-do -- Initialize custom CSS.
-	local provider = Gtk.CssProvider()
-	provider:load_from_string [[
-		textview.parchment-editor {
-			font-size: 12pt;
-		}
-	]]
-	local display = Gdk.Display.get_default()
-	-- Gtk.StyleContext.add_provider_for_display(display, provider, 1)
 end
 
 --[[
