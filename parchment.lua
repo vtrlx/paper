@@ -59,8 +59,8 @@ end
 function lib.dir_and_file(file_path)
 	file_path = lib.absolute_path(file_path)
 	local last = 1
-	while file_path:sub(last + 1):find("/") do
-		last = last + (file_path:sub(last + 1):find("/"))
+	while file_path:sub(last + 1):find "/" do
+		last = last + (file_path:sub(last + 1):find "/")
 	end
 	return file_path:sub(1, last - 1), file_path:sub(last + 1)
 end
@@ -807,6 +807,7 @@ local function new_window()
 			for _, e in ipairs(unsaved) do
 				e.tv.buffer:set_modified(false)
 			end
+			self:close()
 		end
 		if #unsaved > 0 then
 			local dlg = Adw.AlertDialog.new("Close window?", "There are unsaved changes.")
