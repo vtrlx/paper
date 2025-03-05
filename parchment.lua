@@ -356,6 +356,7 @@ local editor = newclass(function(self)
 		refresh_repl_buttons()
 	end
 	search_entry.buffer.on_notify.text = dosearch
+	replace_entry.buffer.on_notify.text = refresh_repl_buttons
 	prev_match.on_clicked = prev
 	next_match.on_clicked = next
 	search_entry.on_activate = next
@@ -1273,18 +1274,26 @@ function editor:replace_in_selection(pattern, repl)
 	if not self:selection_has_match() then return end
 	pattern = lib.escapepattern(pattern)
 	repl = lib.escaperepl(repl)
-	print(pattern, repl)
 	local text = self:selection_get()
+	local vadj = self.scroll.vadjustment
+	local ratio = (vadj.value - vadj.lower) / (vadj.upper - vadj.lower)
 	self:selection_replace(text:gsub(pattern,repl))
+	GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, function()
+		vadj.value = (vadj.upper - vadj.lower) * ratio + vadj.lower
+	end)
 end
 
 function editor:replace_all(pattern, repl)
 	if #pattern == 0 then return end
 	pattern = lib.escapepattern(pattern)
 	repl = lib.escaperepl(repl)
-	print(pattern, repl)
 	local text = self.tv.buffer.text
+	local vadj = self.scroll.vadjustment
+	local ratio = (vadj.value - vadj.lower) / (vadj.upper - vadj.lower)
 	self.tv.buffer.text = text:gsub(pattern, repl)
+	GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, function()
+		vadj.value = (vadj.upper - vadj.lower) * ratio + vadj.lower
+	end)
 end
 
 function editor:begin_jumpover()
